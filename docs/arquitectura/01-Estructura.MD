@@ -175,6 +175,8 @@ Incluye estilos para:
 
 ## Backend asociado
 
+> Esta sección describe el schema/RLS de Supabase, que el frontend sigue consultando directo hoy. Para la API en C# que reemplaza esta capa (todavía no consumida por el frontend), ver [02-Backend-API.md](02-Backend-API.md). Mapa visual: [03-Diagrama.html](03-Diagrama.html).
+
 ### `supabase/migrations/20260724195455_schema.sql`
 Define el esquema principal:
 

@@ -1,6 +1,6 @@
 # 00 - Contexto del proyecto
 
-Este documento resume el contexto de negocio del sistema y las decisiones de origen sobre cómo se armó la base de datos. Para el detalle de cómo está organizado el frontend, ver [01-Estructura.MD](01-Estructura.MD).
+Este documento resume el contexto de negocio del sistema y las decisiones de origen sobre cómo se armó la base de datos. Para el detalle de cómo está organizado el frontend, ver [01-Estructura.MD](01-Estructura.MD). Para la API en C#, ver [02-Backend-API.md](02-Backend-API.md). Para un mapa visual de todo esto junto, ver [03-Diagrama.html](03-Diagrama.html) (abrir en el navegador).
 
 ## Qué es el sistema
 
@@ -11,7 +11,9 @@ El sistema es de **uso interno**: solo lo usan el dueño y sus técnicos. No hay
 ## Stack
 
 - Frontend: React + Vite, React Router.
-- Backend/DB: Supabase (Postgres), con Edge Functions previstas como capa de API (aún no implementadas — hoy el frontend habla directo a Supabase vía `supabase-js`, con RLS como capa de autorización).
+- Backend/API: **API propia en C# (.NET, minimal APIs + EF Core)**, ver [02-Backend-API.md](02-Backend-API.md). Reemplaza el plan original de Edge Functions.
+- Base de datos: Supabase (Postgres) — se sigue usando solo como el Postgres alojado (y Supabase Auth para el login). La API en C# es ahora la única capa que habla directo con la base para leer/escribir datos de negocio.
+- **Transición en curso**: el frontend hoy todavía habla directo a Supabase vía `supabase-js` (con RLS como capa de autorización) para clientes/sitios/unidades/ocupantes/activos. La migración a que consuma la API en C# está pendiente — mientras tanto, RLS sigue siendo la autorización real para esas pantallas.
 
 ## Origen del esquema de base de datos
 

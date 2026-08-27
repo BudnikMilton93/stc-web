@@ -1,0 +1,689 @@
+<title>Arquitectura STC</title>
+<style>
+  :root {
+    --bg: #f3f4f7;
+    --surface: #ffffff;
+    --surface-alt: #eaecf1;
+    --border: #d7dbe3;
+    --text: #1b1f28;
+    --text-muted: #5b6472;
+    --brand: #3b4b6b;
+    --brand-strong: #263252;
+    --flow: #1f6f6b;
+    --flow-soft: #dcefed;
+    --pending: #a8631f;
+    --pending-soft: #f4e6d5;
+    --security: #9c3b3b;
+    --security-soft: #f5dede;
+    --code-bg: #eceef3;
+    --shadow: 0 1px 2px rgba(27, 31, 40, 0.06), 0 8px 24px rgba(27, 31, 40, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151c;
+      --surface: #1a1e28;
+      --surface-alt: #222735;
+      --border: #333b4c;
+      --text: #e8eaf0;
+      --text-muted: #99a2b4;
+      --brand: #8a9bd0;
+      --brand-strong: #b7c2e6;
+      --flow: #52b3ab;
+      --flow-soft: #16302e;
+      --pending: #dd9a4e;
+      --pending-soft: #3a2c17;
+      --security: #dd7d7d;
+      --security-soft: #3a2222;
+      --code-bg: #1f2430;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #12151c;
+    --surface: #1a1e28;
+    --surface-alt: #222735;
+    --border: #333b4c;
+    --text: #e8eaf0;
+    --text-muted: #99a2b4;
+    --brand: #8a9bd0;
+    --brand-strong: #b7c2e6;
+    --flow: #52b3ab;
+    --flow-soft: #16302e;
+    --pending: #dd9a4e;
+    --pending-soft: #3a2c17;
+    --security: #dd7d7d;
+    --security-soft: #3a2222;
+    --code-bg: #1f2430;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--brand);
+  }
+
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+  }
+
+  .top-inner {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .top-inner .name {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+
+  nav.jump {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  nav.jump a {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  nav.jump a:hover { color: var(--text); background: var(--surface-alt); }
+  nav.jump a.active { color: var(--flow); background: var(--flow-soft); }
+
+  main {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 28px 80px;
+  }
+
+  .hero {
+    padding: 44px 0 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .hero h1 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: clamp(26px, 4vw, 34px);
+    font-weight: 600;
+    color: var(--brand-strong);
+  }
+
+  .hero p { max-width: 62ch; color: var(--text-muted); margin: 0; font-size: 15.5px; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .legend .item { display: flex; align-items: center; gap: 7px; }
+  .legend .swatch { width: 22px; height: 2px; flex-shrink: 0; }
+  .legend .swatch.dashed { background: none; border-top: 2px dashed currentColor; }
+  .legend .swatch.solid { background: currentColor; }
+
+  section.panel {
+    padding: 48px 0;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 64px;
+  }
+
+  section.panel:last-of-type { border-bottom: none; }
+
+  .panel-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 26px;
+    max-width: 68ch;
+  }
+
+  .panel-head h2 {
+    font-size: 21px;
+    font-weight: 600;
+  }
+
+  .panel-head p { margin: 0; color: var(--text-muted); }
+
+  figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+
+  figure .scroller {
+    overflow-x: auto;
+  }
+
+  figure svg { display: block; margin: 0 auto; }
+
+  figcaption {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  svg text { fill: currentColor; }
+  svg .muted { fill: var(--text-muted); }
+  svg .flow-line { stroke: var(--flow); }
+  svg .flow-fill { fill: var(--flow); }
+  svg .pending-line { stroke: var(--pending); }
+  svg .pending-fill { fill: var(--pending); }
+  svg .security-line { stroke: var(--security); }
+  svg .security-fill { fill: var(--security); }
+  svg .box { fill: var(--surface); stroke: var(--border); }
+  svg .box-alt { fill: var(--surface-alt); stroke: var(--border); }
+
+  .grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .card h3 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: 10px;
+  }
+
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin-bottom: 4px; }
+  .card li:last-child { margin-bottom: 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  td code {
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+  }
+
+  .pill.staff { color: var(--flow); }
+  .pill.admin { color: var(--security); }
+  .pill.anon { color: var(--pending); }
+
+  .note {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    font-size: 13.5px;
+    color: var(--text-muted);
+  }
+
+  .note strong { color: var(--text); }
+
+  footer {
+    padding: 28px 0 8px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  @media (max-width: 640px) {
+    .top-inner { flex-direction: column; align-items: flex-start; gap: 8px; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<header class="top">
+  <div class="top-inner">
+    <span class="name">stc-web / arquitectura</span>
+    <nav class="jump">
+      <a href="#vision" data-nav>visión general</a>
+      <a href="#stack" data-nav>stack</a>
+      <a href="#seguridad" data-nav>seguridad</a>
+      <a href="#api" data-nav>estructura api</a>
+      <a href="#tests" data-nav>tests</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <span class="eyebrow">Mapa del sistema — agosto 2026</span>
+    <h1>Cómo está armado STC hoy</h1>
+    <p>Sistema interno de gestión técnica (clientes, sitios, órdenes de instalación). Este mapa muestra los componentes reales, qué camino de datos está activo hoy y cuál está construido pero todavía no conectado.</p>
+    <div class="legend">
+      <span class="item" style="color:var(--flow)"><span class="swatch solid"></span>ruta activa hoy</span>
+      <span class="item" style="color:var(--pending)"><span class="swatch dashed"></span>construida, no conectada aún</span>
+      <span class="item" style="color:var(--security)"><span class="swatch dashed"></span>frontera de seguridad</span>
+    </div>
+  </div>
+
+  <!-- ============ VISION GENERAL ============ -->
+  <section class="panel" id="vision">
+    <div class="panel-head">
+      <span class="eyebrow">01 — visión general</span>
+      <h2>Dos caminos hacia la misma base</h2>
+      <p>El frontend hoy lee y escribe datos de negocio hablando directo con Supabase (RLS como autorización). La API en C# ya existe y fue probada contra la base real, pero el frontend todavía no la usa — por eso conviven un camino activo y uno construido en espera.</p>
+    </div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 920 460" role="img" aria-label="El navegador habla hoy directo con Supabase (Postgres + Auth) para leer y escribir datos, protegido por RLS. La API en C# ya se conecta a Postgres via el connection pooler y valida JWT contra Supabase Auth, pero el frontend todavía no le manda tráfico.">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="flow-fill" />
+            </marker>
+            <marker id="a1p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="pending-fill" />
+            </marker>
+            <marker id="a1m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="muted" />
+            </marker>
+          </defs>
+
+          <!-- Browser -->
+          <rect x="40" y="170" width="190" height="100" rx="8" class="box" stroke-width="1.5"/>
+          <text x="135" y="205" text-anchor="middle" font-size="13" font-weight="600">React + Vite</text>
+          <text x="135" y="224" text-anchor="middle" font-size="11" class="muted">panel-admin (staff)</text>
+          <text x="135" y="242" text-anchor="middle" font-size="11" class="muted">supabase-js (sesión)</text>
+
+          <!-- Supabase Auth -->
+          <rect x="400" y="40" width="200" height="82" rx="8" class="box" stroke-width="1.5"/>
+          <text x="500" y="68" text-anchor="middle" font-size="13" font-weight="600">Supabase Auth</text>
+          <text x="500" y="86" text-anchor="middle" font-size="11" class="muted">login staff (email/pass)</text>
+          <text x="500" y="102" text-anchor="middle" font-size="11" class="muted">emite JWT (Signing Keys)</text>
+
+          <!-- API C# -->
+          <rect x="400" y="170" width="220" height="150" rx="8" class="box-alt" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="510" y="197" text-anchor="middle" font-size="13" font-weight="600">API .NET (Stc.Api)</text>
+          <text x="510" y="215" text-anchor="middle" font-size="11" class="muted">valida JWT vía JWKS</text>
+          <text x="510" y="231" text-anchor="middle" font-size="11" class="muted">enriquece claims (rol/activo)</text>
+          <text x="510" y="247" text-anchor="middle" font-size="11" class="muted">policies Staff / Admin</text>
+          <text x="510" y="263" text-anchor="middle" font-size="11" class="muted">EF Core + Npgsql</text>
+          <text x="510" y="285" text-anchor="middle" font-size="10.5" class="pending-fill" font-family="IBM Plex Mono, monospace">construida — sin tráfico del front</text>
+
+          <!-- Postgres -->
+          <rect x="690" y="150" width="190" height="190" rx="8" class="box" stroke-width="1.5"/>
+          <text x="785" y="178" text-anchor="middle" font-size="13" font-weight="600">Postgres</text>
+          <text x="785" y="194" text-anchor="middle" font-size="11" class="muted">(alojado en Supabase)</text>
+          <line x1="710" y1="206" x2="860" y2="206" stroke="var(--border)"/>
+          <text x="785" y="224" text-anchor="middle" font-size="11" class="muted">RLS: staff CRUD, admin delete</text>
+          <text x="785" y="240" text-anchor="middle" font-size="11" class="muted">clientes · sitios · órdenes...</text>
+          <text x="785" y="260" text-anchor="middle" font-size="10.5" class="security-fill" font-family="IBM Plex Mono, monospace">protege el acceso con anon key</text>
+          <text x="785" y="300" text-anchor="middle" font-size="11" class="muted">pooler :5432 (modo sesión)</text>
+          <text x="785" y="316" text-anchor="middle" font-size="10.5" class="muted">:6543 transacción — evitar</text>
+
+          <!-- Browser -> Auth (login) -->
+          <path d="M170,170 C170,90 300,80 400,78" fill="none" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
+          <text x="235" y="85" font-size="10.5" class="flow-fill">login</text>
+
+          <!-- Auth -> Browser (jwt) -->
+          <path d="M400,100 C300,105 200,140 195,170" fill="none" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
+          <text x="255" y="140" font-size="10.5" class="flow-fill">JWT firmado</text>
+
+          <!-- Browser -> Postgres (direct, active) -->
+          <path d="M230,240 C420,300 560,330 690,290" fill="none" class="flow-line" stroke-width="2.5" marker-end="url(#a1)"/>
+          <text x="440" y="322" font-size="11" class="flow-fill" font-weight="500">hoy: supabase-js — clientes, sitios, unidades, ocupantes, activos</text>
+
+          <!-- Browser -> API (pending) -->
+          <path d="M230,205 C300,190 340,185 400,207" fill="none" class="pending-line" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a1p)"/>
+          <text x="248" y="192" font-size="10.5" class="pending-fill">próximo: HTTPS + Bearer JWT</text>
+
+          <!-- API -> Postgres -->
+          <path d="M620,250 C650,255 665,255 690,252" fill="none" class="flow-line" stroke-width="2.5" marker-end="url(#a1)"/>
+          <text x="627" y="270" font-size="10" class="flow-fill">EF Core</text>
+
+          <!-- API -> Auth (JWKS) -->
+          <path d="M470,170 C460,150 460,130 460,122" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="2 3" marker-end="url(#a1m)"/>
+          <text x="330" y="150" font-size="10" class="muted">fetch JWKS (cache)</text>
+        </svg>
+      </div>
+      <figcaption>El navegador ya autentica siempre contra Supabase Auth. Para datos, hoy usa el camino directo a Postgres (teal, protegido por RLS); el camino hacia la API en C# (ámbar, punteado) está construido y probado, pero el frontend todavía no lo llama.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ STACK ============ -->
+  <section class="panel" id="stack">
+    <div class="panel-head">
+      <span class="eyebrow">02 — stack</span>
+      <h2>Herramientas por capa</h2>
+      <p>Qué corre en cada punto del sistema, hoy.</p>
+    </div>
+    <div class="grid-cards">
+      <div class="card">
+        <h3>Frontend</h3>
+        <ul>
+          <li>React 19 + Vite</li>
+          <li>React Router (rutas <code>/panel-admin/*</code>)</li>
+          <li><code>@supabase/supabase-js</code> (sesión + datos)</li>
+          <li>CSS propio, sin librería de UI</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>API</h3>
+        <ul>
+          <li>.NET 10 — minimal APIs</li>
+          <li>EF Core + Npgsql</li>
+          <li>JwtBearer (validación contra JWKS)</li>
+          <li>3 proyectos: Domain / Infrastructure / Api</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Base de datos</h3>
+        <ul>
+          <li>Postgres (alojado en Supabase)</li>
+          <li>Supabase Auth (login, JWT Signing Keys)</li>
+          <li>Migraciones versionadas con Supabase CLI</li>
+          <li>RLS por rol (staff / admin)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Entorno / conexión</h3>
+        <ul>
+          <li>Connection pooler (Supavisor)</li>
+          <li>Modo sesión, puerto <code>5432</code></li>
+          <li>Secretos vía <code>dotnet user-secrets</code></li>
+          <li>Sin JWT secret — solo claves públicas (JWKS)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SEGURIDAD ============ -->
+  <section class="panel" id="seguridad">
+    <div class="panel-head">
+      <span class="eyebrow">03 — seguridad</span>
+      <h2>De un login a una fila autorizada</h2>
+      <p>El recorrido que hace un pedido a la API en C# desde que el staff inicia sesión hasta que una query toca la base. Es la capa nueva; RLS sigue activa en paralelo para el camino directo del frontend.</p>
+    </div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 640 610" role="img" aria-label="Secuencia: login en Supabase Auth, emisión de JWT firmado con JWT Signing Keys, envío del token a la API, validación de firma vía JWKS cacheado, middleware que agrega claims de rol y estado activo desde la tabla usuarios, evaluación de policy Staff o Admin (más el chequeo manual de técnico asignado en órdenes), y ejecución de la query.">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="security-fill" />
+            </marker>
+          </defs>
+
+          <!-- vertical spine -->
+          <line x1="60" y1="50" x2="60" y2="560" stroke="var(--border)" stroke-width="2"/>
+
+          <!-- step template: circle + label -->
+          <!-- 1 -->
+          <circle cx="60" cy="50" r="16" class="box" stroke-width="1.5"/>
+          <text x="60" y="55" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace">1</text>
+          <rect x="100" y="26" width="500" height="48" rx="8" class="box"/>
+          <text x="118" y="46" font-size="12.5" font-weight="500">Staff inicia sesión</text>
+          <text x="118" y="62" font-size="11" class="muted">POST a Supabase Auth con email + password</text>
+
+          <!-- 2 -->
+          <circle cx="60" cy="130" r="16" class="box" stroke-width="1.5"/>
+          <text x="60" y="135" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace">2</text>
+          <rect x="100" y="106" width="500" height="48" rx="8" class="box"/>
+          <text x="118" y="126" font-size="12.5" font-weight="500">Supabase emite el JWT</text>
+          <text x="118" y="142" font-size="11" class="muted">firmado con las JWT Signing Keys del proyecto (claves rotables)</text>
+
+          <!-- 3 -->
+          <circle cx="60" cy="210" r="16" class="box" stroke-width="1.5"/>
+          <text x="60" y="215" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace">3</text>
+          <rect x="100" y="186" width="500" height="48" rx="8" class="box"/>
+          <text x="118" y="206" font-size="12.5" font-weight="500">El navegador llama a la API</text>
+          <text x="118" y="222" font-size="11" class="muted"><tspan font-family="IBM Plex Mono, monospace">Authorization: Bearer &lt;jwt&gt;</tspan></text>
+
+          <!-- 4 (security boundary) -->
+          <circle cx="60" cy="290" r="16" class="box" stroke="var(--security)" stroke-width="2"/>
+          <text x="60" y="295" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace" class="security-fill">4</text>
+          <rect x="100" y="266" width="500" height="48" rx="8" class="box" stroke="var(--security)" stroke-width="1.5"/>
+          <text x="118" y="286" font-size="12.5" font-weight="500">JwtBearer valida la firma</text>
+          <text x="118" y="302" font-size="11" class="muted">contra la clave pública cacheada desde el JWKS del proyecto</text>
+
+          <!-- 5 -->
+          <circle cx="60" cy="370" r="16" class="box" stroke-width="1.5"/>
+          <text x="60" y="375" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace">5</text>
+          <rect x="100" y="346" width="500" height="52" rx="8" class="box"/>
+          <text x="118" y="366" font-size="12.5" font-weight="500">CurrentUserEnrichmentMiddleware</text>
+          <text x="118" y="382" font-size="11" class="muted">busca <tspan font-family="IBM Plex Mono, monospace">usuarios</tspan> por auth_id, agrega claims rol / activo / usuario_id</text>
+
+          <!-- 6 (security boundary) -->
+          <circle cx="60" cy="454" r="16" class="box" stroke="var(--security)" stroke-width="2"/>
+          <text x="60" y="459" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace" class="security-fill">6</text>
+          <rect x="100" y="426" width="500" height="56" rx="8" class="box" stroke="var(--security)" stroke-width="1.5"/>
+          <text x="118" y="446" font-size="12.5" font-weight="500">Policy Staff / Admin</text>
+          <text x="118" y="462" font-size="11" class="muted">+ chequeo manual en <tspan font-family="IBM Plex Mono, monospace">/ordenes</tspan>: admin o técnico asignado</text>
+          <text x="118" y="476" font-size="11" class="muted">si falla: 401 / 403 — no llega a tocar datos</text>
+
+          <!-- 7 -->
+          <circle cx="60" cy="538" r="16" class="box" stroke-width="1.5"/>
+          <text x="60" y="543" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace">7</text>
+          <rect x="100" y="514" width="500" height="48" rx="8" class="box"/>
+          <text x="118" y="534" font-size="12.5" font-weight="500">El endpoint ejecuta la query</text>
+          <text x="118" y="550" font-size="11" class="muted">EF Core → Npgsql → Postgres (pooler, modo sesión)</text>
+        </svg>
+      </div>
+      <figcaption>Los dos pasos marcados en rojo son la frontera de seguridad real: si la firma no valida o la policy rechaza al usuario, la request nunca llega a ejecutar una query. El paso 6 es también donde vive la única regla especial (técnico asignado en órdenes).</figcaption>
+    </figure>
+    <div class="note"><strong>En paralelo:</strong> mientras el frontend siga hablando directo con Supabase para clientes/sitios/unidades/ocupantes/activos, la autorización real de ese camino sigue siendo RLS (mismo esquema staff/admin, aplicado del lado de la base).</div>
+  </section>
+
+  <!-- ============ ESTRUCTURA API ============ -->
+  <section class="panel" id="api">
+    <div class="panel-head">
+      <span class="eyebrow">04 — estructura de la api</span>
+      <h2>Tres proyectos, una dirección de dependencia</h2>
+      <p>Domain no depende de nada. Infrastructure depende de Domain. Api depende de los dos. Sin capa de "casos de uso" — con 2-3 usuarios, la lógica vive directo en los endpoints.</p>
+    </div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 760 300" role="img" aria-label="Tres capas apiladas: Stc.Api arriba con los endpoints y la autenticación, Stc.Infrastructure en el medio con el DbContext de EF Core, Stc.Domain en la base con las entidades sin dependencias. Cada capa depende solo de la de abajo, y Stc.Infrastructure se conecta a Postgres.">
+          <defs>
+            <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="muted" />
+            </marker>
+          </defs>
+
+          <!-- Stc.Api -->
+          <rect x="40" y="24" width="440" height="70" rx="8" class="box" stroke-width="1.5"/>
+          <text x="60" y="50" font-size="13" font-weight="600" font-family="IBM Plex Mono, monospace">Stc.Api</text>
+          <text x="60" y="68" font-size="11" class="muted">Endpoints/*.cs · Auth/JwksRetriever · CurrentUserEnrichmentMiddleware</text>
+          <text x="60" y="84" font-size="11" class="muted">/clientes /sitios /unidades /ocupantes /activos /ordenes /insumos /movimientos-stock /leads /usuarios</text>
+
+          <!-- arrow down -->
+          <line x1="260" y1="94" x2="260" y2="122" class="muted" stroke-width="1.5" marker-end="url(#a3)"/>
+          <text x="272" y="112" font-size="10" class="muted">depende de</text>
+
+          <!-- Stc.Infrastructure -->
+          <rect x="40" y="122" width="440" height="70" rx="8" class="box" stroke-width="1.5"/>
+          <text x="60" y="148" font-size="13" font-weight="600" font-family="IBM Plex Mono, monospace">Stc.Infrastructure</text>
+          <text x="60" y="166" font-size="11" class="muted">StcDbContext · Configurations/*.cs (Fluent API, 1 por tabla)</text>
+          <text x="60" y="182" font-size="11" class="muted">MapEnum: tipo_cliente, estado_orden... (enums nativos de Postgres)</text>
+
+          <!-- arrow down -->
+          <line x1="260" y1="192" x2="260" y2="220" class="muted" stroke-width="1.5" marker-end="url(#a3)"/>
+          <text x="272" y="210" font-size="10" class="muted">depende de</text>
+
+          <!-- Stc.Domain -->
+          <rect x="40" y="220" width="440" height="60" rx="8" class="box-alt" stroke-width="1.5"/>
+          <text x="60" y="246" font-size="13" font-weight="600" font-family="IBM Plex Mono, monospace">Stc.Domain</text>
+          <text x="60" y="264" font-size="11" class="muted">Entities/*.cs + Enums — sin dependencias externas</text>
+
+          <!-- Postgres side -->
+          <rect x="560" y="122" width="160" height="70" rx="8" class="box" stroke-width="1.5"/>
+          <text x="640" y="148" text-anchor="middle" font-size="12.5" font-weight="600">Postgres</text>
+          <text x="640" y="166" text-anchor="middle" font-size="10.5" class="muted">via Npgsql</text>
+          <text x="640" y="180" text-anchor="middle" font-size="10.5" class="muted">pooler :5432</text>
+          <path d="M480,157 L560,157" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
+        </svg>
+      </div>
+      <figcaption>La flecha hacia Postgres sale de Infrastructure, no de Api: los endpoints nunca tocan Npgsql directo, siempre pasan por el DbContext.</figcaption>
+    </figure>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr><th>Recurso</th><th>Métodos</th><th>Autorización</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>/clientes</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Staff</span> <span class="pill admin">Admin (delete)</span></td></tr>
+          <tr><td><code>/sitios /unidades /ocupantes /activos /insumos</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Staff</span> <span class="pill admin">Admin (delete)</span></td></tr>
+          <tr><td><code>/ordenes</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Staff</span> · PUT: admin o técnico asignado</td></tr>
+          <tr><td><code>/movimientos-stock</code></td><td>GET · POST</td><td><span class="pill staff">Staff</span></td></tr>
+          <tr><td><code>/leads</code></td><td>POST</td><td><span class="pill anon">Público</span></td></tr>
+          <tr><td><code>/leads</code></td><td>GET · PUT · DELETE</td><td><span class="pill staff">Staff</span> <span class="pill admin">Admin (delete)</span></td></tr>
+          <tr><td><code>/usuarios</code></td><td>GET</td><td><span class="pill staff">Staff</span></td></tr>
+          <tr><td><code>/usuarios</code></td><td>POST · PUT · DELETE</td><td><span class="pill admin">Admin</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note"><strong>Sin endpoint propio todavía:</strong> <code>orden_items</code> y <code>adjuntos</code> — candidatos a sub-recursos (<code>/ordenes/{id}/items</code>, <code>/adjuntos?entidad_tipo=...</code>) cuando el frontend los necesite.</div>
+  </section>
+
+  <!-- ============ TESTS ============ -->
+  <section class="panel" id="tests">
+    <div class="panel-head">
+      <span class="eyebrow">05 — tests</span>
+      <h2>Todavía no hay cobertura automatizada</h2>
+      <p>Ninguna de las tres capas tiene tests hoy. Se valida a mano (build + <code>dotnet run</code> contra la base real). Mapeado sobre las mismas cajas de la visión general, para que se vea dónde falta.</p>
+    </div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 860 190" role="img" aria-label="Tres cajas, Frontend, API y Postgres, cada una marcada como sin cobertura de tests hoy, con la herramienta recomendada para cada una si se agregan a futuro.">
+          <rect x="20" y="20" width="250" height="120" rx="8" class="box" stroke-dasharray="5 4" stroke="var(--security)" stroke-width="1.5"/>
+          <text x="145" y="50" text-anchor="middle" font-size="13" font-weight="600">Frontend</text>
+          <text x="145" y="70" text-anchor="middle" font-size="11" class="security-fill" font-family="IBM Plex Mono, monospace">sin tests</text>
+          <text x="145" y="96" text-anchor="middle" font-size="11" class="muted">sugerido: Vitest +</text>
+          <text x="145" y="112" text-anchor="middle" font-size="11" class="muted">Testing Library</text>
+
+          <rect x="305" y="20" width="250" height="120" rx="8" class="box" stroke-dasharray="5 4" stroke="var(--security)" stroke-width="1.5"/>
+          <text x="430" y="50" text-anchor="middle" font-size="13" font-weight="600">API (.NET)</text>
+          <text x="430" y="70" text-anchor="middle" font-size="11" class="security-fill" font-family="IBM Plex Mono, monospace">sin tests</text>
+          <text x="430" y="96" text-anchor="middle" font-size="11" class="muted">sugerido: xUnit +</text>
+          <text x="430" y="112" text-anchor="middle" font-size="11" class="muted">WebApplicationFactory</text>
+
+          <rect x="590" y="20" width="250" height="120" rx="8" class="box" stroke-dasharray="5 4" stroke="var(--security)" stroke-width="1.5"/>
+          <text x="715" y="50" text-anchor="middle" font-size="13" font-weight="600">Postgres / RLS</text>
+          <text x="715" y="70" text-anchor="middle" font-size="11" class="security-fill" font-family="IBM Plex Mono, monospace">sin tests</text>
+          <text x="715" y="96" text-anchor="middle" font-size="11" class="muted">sugerido: pgTAP sobre</text>
+          <text x="715" y="112" text-anchor="middle" font-size="11" class="muted">las policies RLS</text>
+        </svg>
+      </div>
+      <figcaption>Prioridad sugerida si se arranca a testear: primero la API (es la lógica de autorización nueva, la que reemplaza RLS), después RLS existente, y el frontend al final.</figcaption>
+    </figure>
+  </section>
+
+  <footer>generado a partir de docs/arquitectura · stc-web</footer>
+</main>
+
+<script>
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('[data-nav]'));
+    var sections = links.map(function (l) { return document.querySelector(l.getAttribute('href')); });
+    function onScroll() {
+      var pos = window.scrollY + 90;
+      var current = sections[0];
+      sections.forEach(function (s) { if (s && s.offsetTop <= pos) current = s; });
+      links.forEach(function (l) {
+        l.classList.toggle('active', document.querySelector(l.getAttribute('href')) === current);
+      });
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
