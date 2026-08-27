@@ -1,0 +1,6 @@
+@Stc.Api_HostAddress = http://localhost:5004
+
+GET {{Stc.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
