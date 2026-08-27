@@ -2,10 +2,9 @@ import logo from '../assets/logo.png'
 
 const services = [
   'Instalacion de camaras de seguridad',
-  'Porteros electricos y cerraduras magneticas',
-  'Reparacion de PC e impresoras',
-  'Formateos y mantenimiento tecnico',
-  'Venta de insumos y repuestos',
+  'Porteros electricos',
+  'Cerraduras magneticas',
+  'Mantenimiento de equipos instalados',
 ]
 
 const stats = [

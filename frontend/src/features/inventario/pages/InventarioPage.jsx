@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
 
-const TIPO_ACTIVO_OPTIONS = ['camara', 'portero', 'cerradura_magnetica', 'pc', 'impresora', 'otro']
+const TIPO_ACTIVO_OPTIONS = ['camara', 'portero', 'cerradura_magnetica', 'otro']
 
 export function InventarioPage() {
   const [loading, setLoading] = useState(true)
