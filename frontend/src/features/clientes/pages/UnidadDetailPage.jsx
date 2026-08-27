@@ -14,7 +14,7 @@ import {
 import { supabase } from '../../../lib/supabase'
 import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
 
-const TIPOS_ACTIVO = ['camara', 'portero', 'cerradura_magnetica', 'pc', 'impresora', 'otro']
+const TIPOS_ACTIVO = ['camara', 'portero', 'cerradura_magnetica', 'otro']
 
 const initialOcupanteForm = {
   nombre: '',
