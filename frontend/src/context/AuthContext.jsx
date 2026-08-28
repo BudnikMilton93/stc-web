@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-
-const STAFF_COLUMNS = 'id, auth_id, nombre, email, rol, activo'
+import { apiClient, ApiError } from '../lib/apiClient'
 
 const AuthContext = createContext(null)
 
@@ -19,19 +18,16 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const fetchStaffProfile = useCallback(async (userId) => {
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select(STAFF_COLUMNS)
-      .eq('auth_id', userId)
-      .eq('activo', true)
-      .maybeSingle()
+  const fetchStaffProfile = useCallback(async () => {
+    try {
+      return await apiClient.get('/usuarios/me')
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 401 || error.status === 403)) {
+        return null
+      }
 
-    if (error && error.code !== 'PGRST116') {
       throw error
     }
-
-    return data ?? null
   }, [])
 
   const applySession = useCallback(
@@ -42,7 +38,7 @@ export function AuthProvider({ children }) {
         return { authorized: false }
       }
 
-      const profile = await fetchStaffProfile(nextSession.user.id)
+      const profile = await fetchStaffProfile()
 
       if (!profile) {
         await supabase.auth.signOut()
