@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../../lib/supabase'
-import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { apiClient, ApiError } from '../../../lib/apiClient'
 
-const TIPO_ACTIVO_OPTIONS = ['camara', 'portero', 'cerradura_magnetica', 'otro']
+const TIPO_ACTIVO_OPTIONS = ['camara', 'portero', 'cerraduraMagnetica', 'otro']
 
 export function InventarioPage() {
   const [loading, setLoading] = useState(true)
@@ -10,6 +9,8 @@ export function InventarioPage() {
 
   const [clientes, setClientes] = useState([])
   const [sitios, setSitios] = useState([])
+  const [unidades, setUnidades] = useState([])
+  const [ocupantes, setOcupantes] = useState([])
   const [activos, setActivos] = useState([])
 
   const [tipoFilter, setTipoFilter] = useState('')
@@ -18,80 +19,67 @@ export function InventarioPage() {
   const [serieFilter, setSerieFilter] = useState('')
 
   const loadClientes = useCallback(async () => {
-    const { data, error: queryError } = await supabase
-      .from('clientes')
-      .select('id, nombre')
-      .order('nombre', { ascending: true })
-
-    if (queryError) {
-      throw queryError
-    }
-
-    setClientes(data ?? [])
+    const data = await apiClient.get('/clientes')
+    setClientes(
+      [...(data ?? [])].sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? '')),
+    )
   }, [])
 
   const loadSitios = useCallback(async (clienteId = '') => {
-    let query = supabase.from('sitios').select('id, cliente_id, nombre').order('nombre', { ascending: true })
+    const query = clienteId ? `?clienteId=${clienteId}` : ''
+    const data = await apiClient.get(`/sitios${query}`)
+    setSitios(
+      [...(data ?? [])].sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? '')),
+    )
+  }, [])
 
-    if (clienteId) {
-      query = query.eq('cliente_id', clienteId)
-    }
+  // La API no soporta embeds/joins como Supabase (PostgREST). Para poder mostrar
+  // el nombre de la unidad y el ocupante de cada activo sin hacer un request por
+  // fila, traemos todas las unidades y ocupantes una sola vez y los resolvemos
+  // por id del lado del cliente. Aceptable para el volumen de datos actual.
+  const loadUnidades = useCallback(async () => {
+    const data = await apiClient.get('/unidades')
+    setUnidades(data ?? [])
+  }, [])
 
-    const { data, error: queryError } = await query
-
-    if (queryError) {
-      throw queryError
-    }
-
-    setSitios(data ?? [])
+  const loadOcupantes = useCallback(async () => {
+    const data = await apiClient.get('/ocupantes')
+    setOcupantes(data ?? [])
   }, [])
 
   const loadActivos = useCallback(async () => {
     setLoading(true)
     setError('')
 
-    let query = supabase
-      .from('activos')
-      .select(
-        'id, tipo, marca, modelo, numero_serie, fecha_instalacion, garantia_hasta, estado, cliente_id, sitio_id, unidad_id, ocupante_id, created_at, cliente:clientes(nombre), sitio:sitios(nombre), unidad:unidades(identificador), ocupante:ocupantes(nombre)',
-      )
-      .order('created_at', { ascending: false })
-
-    if (tipoFilter) {
-      query = query.eq('tipo', tipoFilter)
-    }
-
+    const params = new URLSearchParams()
     if (clienteFilter) {
-      query = query.eq('cliente_id', clienteFilter)
+      params.set('clienteId', clienteFilter)
     }
-
     if (sitioFilter) {
-      query = query.eq('sitio_id', sitioFilter)
+      params.set('sitioId', sitioFilter)
     }
 
-    if (serieFilter.trim()) {
-      query = query.ilike('numero_serie', `%${serieFilter.trim()}%`)
-    }
+    const query = params.toString()
 
-    const { data, error: queryError } = await query
-
-    if (queryError) {
-      setError(toFriendlySupabaseError(queryError, 'No se pudieron cargar los activos'))
+    try {
+      const data = await apiClient.get(`/activos${query ? `?${query}` : ''}`)
+      setActivos(data ?? [])
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudieron cargar los activos'
+      setError(message || 'No se pudieron cargar los activos')
       setActivos([])
+    } finally {
       setLoading(false)
-      return
     }
-
-    setActivos(data ?? [])
-    setLoading(false)
-  }, [clienteFilter, serieFilter, sitioFilter, tipoFilter])
+  }, [clienteFilter, sitioFilter])
 
   useEffect(() => {
     void (async () => {
       try {
         await loadClientes()
       } catch (err) {
-        setError(toFriendlySupabaseError(err, 'No se pudieron cargar los clientes para filtrar'))
+        const message = err instanceof ApiError ? err.message : 'No se pudieron cargar los clientes para filtrar'
+        setError(message || 'No se pudieron cargar los clientes para filtrar')
       }
     })()
   }, [loadClientes])
@@ -101,10 +89,23 @@ export function InventarioPage() {
       try {
         await loadSitios(clienteFilter)
       } catch (err) {
-        setError(toFriendlySupabaseError(err, 'No se pudieron cargar los sitios para filtrar'))
+        const message = err instanceof ApiError ? err.message : 'No se pudieron cargar los sitios para filtrar'
+        setError(message || 'No se pudieron cargar los sitios para filtrar')
       }
     })()
   }, [clienteFilter, loadSitios])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await Promise.all([loadUnidades(), loadOcupantes()])
+      } catch (err) {
+        const message =
+          err instanceof ApiError ? err.message : 'No se pudieron cargar las unidades y ocupantes para el listado'
+        setError(message || 'No se pudieron cargar las unidades y ocupantes para el listado')
+      }
+    })()
+  }, [loadUnidades, loadOcupantes])
 
   useEffect(() => {
     if (!clienteFilter) {
@@ -120,6 +121,29 @@ export function InventarioPage() {
   useEffect(() => {
     void loadActivos()
   }, [loadActivos])
+
+  const clientesById = useMemo(() => new Map(clientes.map((item) => [item.id, item])), [clientes])
+  const sitiosById = useMemo(() => new Map(sitios.map((item) => [item.id, item])), [sitios])
+  const unidadesById = useMemo(() => new Map(unidades.map((item) => [item.id, item])), [unidades])
+  const ocupantesById = useMemo(() => new Map(ocupantes.map((item) => [item.id, item])), [ocupantes])
+
+  // Filtros que la API no expone por query (tipo y numero de serie): se aplican
+  // en memoria sobre el listado ya cargado, igual que el buscador de ClientesPage.
+  const filteredActivos = useMemo(() => {
+    const serie = serieFilter.trim().toLowerCase()
+
+    return activos.filter((item) => {
+      if (tipoFilter && item.tipo !== tipoFilter) {
+        return false
+      }
+
+      if (serie && !(item.numeroSerie ?? '').toLowerCase().includes(serie)) {
+        return false
+      }
+
+      return true
+    })
+  }, [activos, serieFilter, tipoFilter])
 
   return (
     <section className="crud-shell">
@@ -183,11 +207,11 @@ export function InventarioPage() {
 
         {loading ? <p className="muted-text">Cargando activos...</p> : null}
 
-        {!loading && activos.length === 0 ? (
+        {!loading && filteredActivos.length === 0 ? (
           <p className="muted-text">No hay activos para los filtros aplicados.</p>
         ) : null}
 
-        {!loading && activos.length > 0 ? (
+        {!loading && filteredActivos.length > 0 ? (
           <div className="table-wrap">
             <table className="data-table">
               <thead>
@@ -203,18 +227,18 @@ export function InventarioPage() {
                 </tr>
               </thead>
               <tbody>
-                {activos.map((item) => (
+                {filteredActivos.map((item) => (
                   <tr key={item.id}>
                     <td>{item.tipo}</td>
                     <td>{item.estado}</td>
                     <td>
                       {(item.marca || 'Sin marca')} / {(item.modelo || 'Sin modelo')}
                     </td>
-                    <td>{item.numero_serie || 'Sin serie'}</td>
-                    <td>{item.cliente?.nombre || '-'}</td>
-                    <td>{item.sitio?.nombre || '-'}</td>
-                    <td>{item.unidad?.identificador || '-'}</td>
-                    <td>{item.ocupante?.nombre || '-'}</td>
+                    <td>{item.numeroSerie || 'Sin serie'}</td>
+                    <td>{clientesById.get(item.clienteId)?.nombre || '-'}</td>
+                    <td>{sitiosById.get(item.sitioId)?.nombre || '-'}</td>
+                    <td>{unidadesById.get(item.unidadId)?.identificador || '-'}</td>
+                    <td>{ocupantesById.get(item.ocupanteId)?.nombre || '-'}</td>
                   </tr>
                 ))}
               </tbody>
