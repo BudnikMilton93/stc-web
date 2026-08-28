@@ -1,14 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FiEdit2, FiEye, FiPlus, FiSave, FiX } from 'react-icons/fi'
-import { supabase } from '../../../lib/supabase'
-import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
+import { apiClient, ApiError } from '../../../lib/apiClient'
 import { TIPO_CLIENTE_OPTIONS } from '../constants'
 
 const initialForm = {
   tipo: 'persona',
   nombre: '',
-  dni_cuit: '',
+  dniCuit: '',
   email: '',
   telefono: '',
   direccion: '',
@@ -27,59 +26,38 @@ export function ClientesPage() {
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState(initialForm)
 
-  const loadClientes = useCallback(async (term = '') => {
+  const loadClientes = useCallback(async () => {
     setLoading(true)
     setError('')
 
-    let request = supabase
-      .from('clientes')
-      .select('id, tipo, nombre, dni_cuit, email, telefono, direccion, notas, created_at, updated_at')
-      .order('nombre', { ascending: true })
-
-    const cleanTerm = term.trim()
-
-    if (cleanTerm) {
-      request = request.textSearch('nombre', cleanTerm, {
-        config: 'spanish',
-        type: 'websearch',
-      })
-    }
-
-    const { data, error: queryError } = await request
-
-    if (queryError && cleanTerm) {
-      const fallbackResult = await supabase
-        .from('clientes')
-        .select('id, tipo, nombre, dni_cuit, email, telefono, direccion, notas, created_at, updated_at')
-        .ilike('nombre', `%${cleanTerm}%`)
-        .order('nombre', { ascending: true })
-
-      if (fallbackResult.error) {
-        setError(toFriendlySupabaseError(fallbackResult.error, 'No se pudieron cargar los clientes'))
-        setClientes([])
-        setLoading(false)
-        return
-      }
-
-      setClientes(fallbackResult.data ?? [])
-      setLoading(false)
-      return
-    }
-
-    if (queryError) {
-      setError(toFriendlySupabaseError(queryError, 'No se pudieron cargar los clientes'))
+    try {
+      const data = await apiClient.get('/clientes')
+      setClientes(data ?? [])
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudieron cargar los clientes'
+      setError(message || 'No se pudieron cargar los clientes')
       setClientes([])
+    } finally {
       setLoading(false)
-      return
     }
-
-    setClientes(data ?? [])
-    setLoading(false)
   }, [])
 
   useEffect(() => {
-    void loadClientes(search)
-  }, [loadClientes, search])
+    void loadClientes()
+  }, [loadClientes])
+
+  // Filtro en memoria: la API todavia no expone busqueda full-text como
+  // hacia Supabase (textSearch + fallback ilike), asi que filtramos del lado
+  // del cliente sobre la lista ya cargada.
+  const filteredClientes = useMemo(() => {
+    const cleanTerm = search.trim().toLowerCase()
+
+    if (!cleanTerm) {
+      return clientes
+    }
+
+    return clientes.filter((cliente) => cliente.nombre?.toLowerCase().includes(cleanTerm))
+  }, [clientes, search])
 
   const openCreateForm = () => {
     setEditingClienteId('')
@@ -93,7 +71,7 @@ export function ClientesPage() {
     setForm({
       tipo: cliente.tipo,
       nombre: cliente.nombre ?? '',
-      dni_cuit: cliente.dni_cuit ?? '',
+      dniCuit: cliente.dniCuit ?? '',
       email: cliente.email ?? '',
       telefono: cliente.telefono ?? '',
       direccion: cliente.direccion ?? '',
@@ -118,7 +96,7 @@ export function ClientesPage() {
     const payload = {
       tipo: form.tipo,
       nombre: form.nombre.trim(),
-      dni_cuit: form.dni_cuit.trim() || null,
+      dniCuit: form.dniCuit.trim() || null,
       email: form.email.trim() || null,
       telefono: form.telefono.trim() || null,
       direccion: form.direccion.trim() || null,
@@ -131,21 +109,22 @@ export function ClientesPage() {
       return
     }
 
-    const query = editingClienteId
-      ? supabase.from('clientes').update(payload).eq('id', editingClienteId)
-      : supabase.from('clientes').insert(payload)
-
-    const { error: saveError } = await query
-
-    if (saveError) {
-      setFormError(toFriendlySupabaseError(saveError, 'No se pudo guardar el cliente'))
+    try {
+      if (editingClienteId) {
+        await apiClient.put(`/clientes/${editingClienteId}`, payload)
+      } else {
+        await apiClient.post('/clientes', payload)
+      }
+    } catch (saveError) {
+      const message = saveError instanceof ApiError ? saveError.message : 'No se pudo guardar el cliente'
+      setFormError(message || 'No se pudo guardar el cliente')
       setSaving(false)
       return
     }
 
     closeForm()
     setSaving(false)
-    await loadClientes(search)
+    await loadClientes()
   }
 
   return (
@@ -165,7 +144,7 @@ export function ClientesPage() {
       <article className="crud-card">
         <div className="toolbar-row">
           <label className="search-field" htmlFor="cliente-search-input">
-            Buscar por nombre (full-text)
+            Buscar por nombre
             <input
               id="cliente-search-input"
               value={search}
@@ -179,13 +158,13 @@ export function ClientesPage() {
 
         {loading ? <p className="muted-text">Cargando clientes...</p> : null}
 
-        {!loading && clientes.length === 0 ? (
+        {!loading && filteredClientes.length === 0 ? (
           <p className="muted-text">No hay clientes para mostrar con este criterio.</p>
         ) : null}
 
-        {!loading && clientes.length > 0 ? (
+        {!loading && filteredClientes.length > 0 ? (
           <div className="list-grid">
-            {clientes.map((cliente) => (
+            {filteredClientes.map((cliente) => (
               <article className="list-item" key={cliente.id}>
                 <div>
                   <h4>{cliente.nombre}</h4>
@@ -243,8 +222,8 @@ export function ClientesPage() {
             <label>
               DNI / CUIT
               <input
-                value={form.dni_cuit}
-                onChange={(e) => setForm((p) => ({ ...p, dni_cuit: e.target.value }))}
+                value={form.dniCuit}
+                onChange={(e) => setForm((p) => ({ ...p, dniCuit: e.target.value }))}
               />
             </label>
 
@@ -276,7 +255,6 @@ export function ClientesPage() {
             <label className="span-2">
               Notas
               <textarea
-                rows={3}
                 value={form.notas}
                 onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))}
               />

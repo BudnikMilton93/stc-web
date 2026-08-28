@@ -16,7 +16,7 @@ public static class ClientesEndpoints
             var clientes = await db.Clientes
                 .AsNoTracking()
                 .OrderBy(c => c.Nombre)
-                .Select(c => new ClienteResponse(c.Id, c.Tipo, c.Nombre, c.DniCuit, c.Email, c.Telefono, c.Direccion))
+                .Select(c => new ClienteResponse(c.Id, c.Tipo, c.Nombre, c.DniCuit, c.Email, c.Telefono, c.Direccion, c.Notas))
                 .ToListAsync(ct);
 
             return Results.Ok(clientes);
@@ -27,7 +27,7 @@ public static class ClientesEndpoints
             var cliente = await db.Clientes
                 .AsNoTracking()
                 .Where(c => c.Id == id)
-                .Select(c => new ClienteResponse(c.Id, c.Tipo, c.Nombre, c.DniCuit, c.Email, c.Telefono, c.Direccion))
+                .Select(c => new ClienteResponse(c.Id, c.Tipo, c.Nombre, c.DniCuit, c.Email, c.Telefono, c.Direccion, c.Notas))
                 .SingleOrDefaultAsync(ct);
 
             return cliente is null ? Results.NotFound() : Results.Ok(cliente);
@@ -44,13 +44,14 @@ public static class ClientesEndpoints
                 Email = request.Email,
                 Telefono = request.Telefono,
                 Direccion = request.Direccion,
+                Notas = request.Notas,
             };
 
             db.Clientes.Add(cliente);
             await db.SaveChangesAsync(ct);
 
             return Results.Created($"/clientes/{cliente.Id}",
-                new ClienteResponse(cliente.Id, cliente.Tipo, cliente.Nombre, cliente.DniCuit, cliente.Email, cliente.Telefono, cliente.Direccion));
+                new ClienteResponse(cliente.Id, cliente.Tipo, cliente.Nombre, cliente.DniCuit, cliente.Email, cliente.Telefono, cliente.Direccion, cliente.Notas));
         });
 
         group.MapPut("/{id:guid}", async (Guid id, ActualizarClienteRequest request, StcDbContext db, CancellationToken ct) =>
@@ -64,10 +65,11 @@ public static class ClientesEndpoints
             cliente.Email = request.Email;
             cliente.Telefono = request.Telefono;
             cliente.Direccion = request.Direccion;
+            cliente.Notas = request.Notas;
 
             await db.SaveChangesAsync(ct);
 
-            return Results.Ok(new ClienteResponse(cliente.Id, cliente.Tipo, cliente.Nombre, cliente.DniCuit, cliente.Email, cliente.Telefono, cliente.Direccion));
+            return Results.Ok(new ClienteResponse(cliente.Id, cliente.Tipo, cliente.Nombre, cliente.DniCuit, cliente.Email, cliente.Telefono, cliente.Direccion, cliente.Notas));
         });
 
         // Borrar clientes queda reservado a admin (el patron identico se repite
@@ -80,8 +82,8 @@ public static class ClientesEndpoints
     }
 }
 
-public record ClienteResponse(Guid Id, TipoCliente Tipo, string Nombre, string? DniCuit, string? Email, string? Telefono, string? Direccion);
+public record ClienteResponse(Guid Id, TipoCliente Tipo, string Nombre, string? DniCuit, string? Email, string? Telefono, string? Direccion, string? Notas);
 
-public record CrearClienteRequest(TipoCliente Tipo, string Nombre, string? DniCuit, string? Email, string? Telefono, string? Direccion);
+public record CrearClienteRequest(TipoCliente Tipo, string Nombre, string? DniCuit, string? Email, string? Telefono, string? Direccion, string? Notas);
 
-public record ActualizarClienteRequest(TipoCliente Tipo, string Nombre, string? DniCuit, string? Email, string? Telefono, string? Direccion);
+public record ActualizarClienteRequest(TipoCliente Tipo, string Nombre, string? DniCuit, string? Email, string? Telefono, string? Direccion, string? Notas);
