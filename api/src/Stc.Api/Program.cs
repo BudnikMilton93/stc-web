@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols;
@@ -9,6 +11,15 @@ using Stc.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+// Sin este converter los enums (TipoCliente, RolUsuario, etc.) se serializan
+// como numeros, lo que no coincide con los valores en minusculas ('persona',
+// 'admin', etc.) que ya usa el frontend. CamelCase sobre el nombre del enum
+// en PascalCase produce exactamente esos valores (Persona -> persona).
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+});
 
 var connectionString = builder.Configuration.GetConnectionString("StcDatabase")
     ?? throw new InvalidOperationException("Falta ConnectionStrings:StcDatabase en la configuracion.");
@@ -30,6 +41,11 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Sin esto, ASP.NET Core remapea "sub" a un claim type interno
+        // (ClaimTypes.NameIdentifier) y CurrentUserEnrichmentMiddleware
+        // no lo encuentra al buscar "sub" literal.
+        options.MapInboundClaims = false;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -49,11 +65,25 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Staff", p => p.RequireClaim("activo", "true"))
     .AddPolicy("Admin", p => p.RequireClaim("rol", "Admin"));
 
+const string FrontendDevCorsPolicy = "FrontendDev";
+
+// Solo para desarrollo: el frontend (Vite) corre en un puerto distinto al de
+// esta API, asi que el navegador exige que el origen este habilitado
+// explicitamente. En produccion todavia no hay un origen definido.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendDevCorsPolicy, policy =>
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseCors(FrontendDevCorsPolicy);
 }
 
 app.UseHttpsRedirection();
