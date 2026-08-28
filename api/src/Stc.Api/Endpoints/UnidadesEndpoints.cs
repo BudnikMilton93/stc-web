@@ -17,7 +17,7 @@ public static class UnidadesEndpoints
 
             var unidades = await query
                 .OrderBy(u => u.Identificador)
-                .Select(u => new UnidadResponse(u.Id, u.SitioId, u.Identificador, u.Piso))
+                .Select(u => new UnidadResponse(u.Id, u.SitioId, u.Identificador, u.Piso, u.Notas))
                 .ToListAsync(ct);
 
             return Results.Ok(unidades);
@@ -28,7 +28,7 @@ public static class UnidadesEndpoints
             var unidad = await db.Unidades
                 .AsNoTracking()
                 .Where(u => u.Id == id)
-                .Select(u => new UnidadResponse(u.Id, u.SitioId, u.Identificador, u.Piso))
+                .Select(u => new UnidadResponse(u.Id, u.SitioId, u.Identificador, u.Piso, u.Notas))
                 .SingleOrDefaultAsync(ct);
 
             return unidad is null ? Results.NotFound() : Results.Ok(unidad);
@@ -42,13 +42,14 @@ public static class UnidadesEndpoints
                 SitioId = request.SitioId,
                 Identificador = request.Identificador,
                 Piso = request.Piso,
+                Notas = request.Notas,
             };
 
             db.Unidades.Add(unidad);
             await db.SaveChangesAsync(ct);
 
             return Results.Created($"/unidades/{unidad.Id}",
-                new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso));
+                new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso, unidad.Notas));
         });
 
         group.MapPut("/{id:guid}", async (Guid id, ActualizarUnidadRequest request, StcDbContext db, CancellationToken ct) =>
@@ -58,10 +59,11 @@ public static class UnidadesEndpoints
 
             unidad.Identificador = request.Identificador;
             unidad.Piso = request.Piso;
+            unidad.Notas = request.Notas;
 
             await db.SaveChangesAsync(ct);
 
-            return Results.Ok(new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso));
+            return Results.Ok(new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso, unidad.Notas));
         });
 
         group.MapDelete("/{id:guid}", async (Guid id, StcDbContext db, CancellationToken ct) =>
@@ -72,6 +74,6 @@ public static class UnidadesEndpoints
     }
 }
 
-public record UnidadResponse(Guid Id, Guid SitioId, string Identificador, string? Piso);
-public record CrearUnidadRequest(Guid SitioId, string Identificador, string? Piso);
-public record ActualizarUnidadRequest(string Identificador, string? Piso);
+public record UnidadResponse(Guid Id, Guid SitioId, string Identificador, string? Piso, string? Notas);
+public record CrearUnidadRequest(Guid SitioId, string Identificador, string? Piso, string? Notas);
+public record ActualizarUnidadRequest(string Identificador, string? Piso, string? Notas);

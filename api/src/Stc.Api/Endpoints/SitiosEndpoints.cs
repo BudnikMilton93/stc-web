@@ -18,7 +18,7 @@ public static class SitiosEndpoints
 
             var sitios = await query
                 .OrderBy(s => s.Nombre)
-                .Select(s => new SitioResponse(s.Id, s.ClienteId, s.Nombre, s.Tipo, s.Direccion, s.Ciudad))
+                .Select(s => new SitioResponse(s.Id, s.ClienteId, s.Nombre, s.Tipo, s.Direccion, s.Ciudad, s.Notas))
                 .ToListAsync(ct);
 
             return Results.Ok(sitios);
@@ -29,7 +29,7 @@ public static class SitiosEndpoints
             var sitio = await db.Sitios
                 .AsNoTracking()
                 .Where(s => s.Id == id)
-                .Select(s => new SitioResponse(s.Id, s.ClienteId, s.Nombre, s.Tipo, s.Direccion, s.Ciudad))
+                .Select(s => new SitioResponse(s.Id, s.ClienteId, s.Nombre, s.Tipo, s.Direccion, s.Ciudad, s.Notas))
                 .SingleOrDefaultAsync(ct);
 
             return sitio is null ? Results.NotFound() : Results.Ok(sitio);
@@ -45,13 +45,14 @@ public static class SitiosEndpoints
                 Tipo = request.Tipo,
                 Direccion = request.Direccion,
                 Ciudad = request.Ciudad,
+                Notas = request.Notas,
             };
 
             db.Sitios.Add(sitio);
             await db.SaveChangesAsync(ct);
 
             return Results.Created($"/sitios/{sitio.Id}",
-                new SitioResponse(sitio.Id, sitio.ClienteId, sitio.Nombre, sitio.Tipo, sitio.Direccion, sitio.Ciudad));
+                new SitioResponse(sitio.Id, sitio.ClienteId, sitio.Nombre, sitio.Tipo, sitio.Direccion, sitio.Ciudad, sitio.Notas));
         });
 
         group.MapPut("/{id:guid}", async (Guid id, ActualizarSitioRequest request, StcDbContext db, CancellationToken ct) =>
@@ -63,10 +64,11 @@ public static class SitiosEndpoints
             sitio.Tipo = request.Tipo;
             sitio.Direccion = request.Direccion;
             sitio.Ciudad = request.Ciudad;
+            sitio.Notas = request.Notas;
 
             await db.SaveChangesAsync(ct);
 
-            return Results.Ok(new SitioResponse(sitio.Id, sitio.ClienteId, sitio.Nombre, sitio.Tipo, sitio.Direccion, sitio.Ciudad));
+            return Results.Ok(new SitioResponse(sitio.Id, sitio.ClienteId, sitio.Nombre, sitio.Tipo, sitio.Direccion, sitio.Ciudad, sitio.Notas));
         });
 
         group.MapDelete("/{id:guid}", async (Guid id, StcDbContext db, CancellationToken ct) =>
@@ -77,6 +79,6 @@ public static class SitiosEndpoints
     }
 }
 
-public record SitioResponse(Guid Id, Guid ClienteId, string Nombre, TipoSitio Tipo, string Direccion, string? Ciudad);
-public record CrearSitioRequest(Guid ClienteId, string Nombre, TipoSitio Tipo, string Direccion, string? Ciudad);
-public record ActualizarSitioRequest(string Nombre, TipoSitio Tipo, string Direccion, string? Ciudad);
+public record SitioResponse(Guid Id, Guid ClienteId, string Nombre, TipoSitio Tipo, string Direccion, string? Ciudad, string? Notas);
+public record CrearSitioRequest(Guid ClienteId, string Nombre, TipoSitio Tipo, string Direccion, string? Ciudad, string? Notas);
+public record ActualizarSitioRequest(string Nombre, TipoSitio Tipo, string Direccion, string? Ciudad, string? Notas);

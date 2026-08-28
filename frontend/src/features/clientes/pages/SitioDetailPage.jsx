@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FiArchive, FiCheckCircle, FiEdit3, FiExternalLink, FiHome, FiMapPin, FiRotateCcw, FiUsers, FiXCircle } from 'react-icons/fi'
-import { supabase } from '../../../lib/supabase'
-import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
+import { apiClient, ApiError } from '../../../lib/apiClient'
 
 const initialUnidadForm = {
   identificador: '',
@@ -86,44 +85,34 @@ export function SitioDetailPage() {
         setLoading(true)
         setPageError('')
 
-        const [sitioResult, unidadesResult] = await Promise.all([
-          supabase
-            .from('sitios')
-            .select('id, cliente_id, nombre, tipo, direccion, ciudad, notas, created_at')
-            .eq('id', sitioId)
-            .eq('cliente_id', clienteId)
-            .maybeSingle(),
-          supabase
-            .from('unidades')
-            .select('id, sitio_id, identificador, piso, notas, created_at')
-            .eq('sitio_id', sitioId)
-            .order('identificador', { ascending: true }),
-        ])
+        let sitioData
+        let unidadRows
 
-        if (sitioResult.error) {
-          setPageError(toFriendlySupabaseError(sitioResult.error, 'No se pudo cargar el sitio'))
+        try {
+          ;[sitioData, unidadRows] = await Promise.all([
+            apiClient.get(`/sitios/${sitioId}`),
+            apiClient.get(`/unidades?sitioId=${sitioId}`),
+          ])
+        } catch (requestError) {
+          if (requestError instanceof ApiError && requestError.status === 404) {
+            setPageError('No se encontro el sitio solicitado para este cliente.')
+          } else {
+            const message = requestError instanceof ApiError ? requestError.message : 'No se pudo cargar el sitio'
+            setPageError(message || 'No se pudo cargar el sitio')
+          }
           setUnidadOcupanteCountMap({})
           setLoading(false)
           return
         }
 
-        if (!sitioResult.data) {
+        if (!sitioData || sitioData.clienteId !== clienteId) {
           setPageError('No se encontro el sitio solicitado para este cliente.')
           setUnidadOcupanteCountMap({})
           setLoading(false)
           return
         }
 
-        if (unidadesResult.error) {
-          setPageError(toFriendlySupabaseError(unidadesResult.error, 'No se pudieron cargar las unidades'))
-          setSitio(sitioResult.data)
-          setUnidades([])
-          setUnidadOcupanteCountMap({})
-          setLoading(false)
-          return
-        }
-
-        const unidadRows = unidadesResult.data ?? []
+        unidadRows = unidadRows ?? []
         const activeUnidadIds = unidadRows
           .filter((item) => !isArchivedRecord(item.notas))
           .map((item) => item.id)
@@ -131,33 +120,32 @@ export function SitioDetailPage() {
         let ocupanteCountMap = {}
 
         if (activeUnidadIds.length > 0) {
-          const ocupantesResult = await supabase
-            .from('ocupantes')
-            .select('unidad_id, notas')
-            .in('unidad_id', activeUnidadIds)
-
-          if (ocupantesResult.error) {
-            setPageError(
-              toFriendlySupabaseError(ocupantesResult.error, 'No se pudo validar el estado de ocupantes'),
+          try {
+            const ocupantesPorUnidad = await Promise.all(
+              activeUnidadIds.map((unidadId) => apiClient.get(`/ocupantes?unidadId=${unidadId}`)),
             )
-            setSitio(sitioResult.data)
+
+            ocupanteCountMap = ocupantesPorUnidad.flat().reduce((acc, ocupante) => {
+              if (isArchivedRecord(ocupante.notas)) {
+                return acc
+              }
+
+              acc[ocupante.unidadId] = (acc[ocupante.unidadId] ?? 0) + 1
+              return acc
+            }, {})
+          } catch (requestError) {
+            const message =
+              requestError instanceof ApiError ? requestError.message : 'No se pudo validar el estado de ocupantes'
+            setPageError(message || 'No se pudo validar el estado de ocupantes')
+            setSitio(sitioData)
             setUnidades(unidadRows)
             setUnidadOcupanteCountMap({})
             setLoading(false)
             return
           }
-
-          ocupanteCountMap = (ocupantesResult.data ?? []).reduce((acc, ocupante) => {
-            if (isArchivedRecord(ocupante.notas)) {
-              return acc
-            }
-
-            acc[ocupante.unidad_id] = (acc[ocupante.unidad_id] ?? 0) + 1
-            return acc
-          }, {})
         }
 
-        setSitio(sitioResult.data)
+        setSitio(sitioData)
         setUnidades(unidadRows)
         setUnidadOcupanteCountMap(ocupanteCountMap)
         setLoading(false)
@@ -208,27 +196,29 @@ export function SitioDetailPage() {
     setUnidadSaving(true)
     setUnidadError('')
 
-    const payload = {
-      sitio_id: sitioId,
-      identificador: unidadForm.identificador.trim(),
-      piso: unidadForm.piso.trim() || null,
-      notas: unidadForm.notas.trim() || null,
-    }
+    const identificador = unidadForm.identificador.trim()
 
-    if (!payload.identificador) {
+    if (!identificador) {
       setUnidadError('El identificador es obligatorio.')
       setUnidadSaving(false)
       return
     }
 
-    const query = editingUnidadId
-      ? supabase.from('unidades').update(payload).eq('id', editingUnidadId)
-      : supabase.from('unidades').insert(payload)
+    const basePayload = {
+      identificador,
+      piso: unidadForm.piso.trim() || null,
+      notas: unidadForm.notas.trim() || null,
+    }
 
-    const { error } = await query
-
-    if (error) {
-      setUnidadError(toFriendlySupabaseError(error, 'No se pudo guardar la unidad'))
+    try {
+      if (editingUnidadId) {
+        await apiClient.put(`/unidades/${editingUnidadId}`, basePayload)
+      } else {
+        await apiClient.post('/unidades', { ...basePayload, sitioId })
+      }
+    } catch (saveError) {
+      const message = saveError instanceof ApiError ? saveError.message : 'No se pudo guardar la unidad'
+      setUnidadError(message || 'No se pudo guardar la unidad')
       setUnidadSaving(false)
       return
     }
@@ -248,13 +238,16 @@ export function SitioDetailPage() {
     }
 
     setUnidadActionLoadingId(unidad.id)
-    const { error } = await supabase
-      .from('unidades')
-      .update({ notas: addArchiveFlag(unidad.notas) })
-      .eq('id', unidad.id)
 
-    if (error) {
-      setUnidadError(toFriendlySupabaseError(error, 'No se pudo dar de baja la unidad'))
+    try {
+      await apiClient.put(`/unidades/${unidad.id}`, {
+        identificador: unidad.identificador,
+        piso: unidad.piso,
+        notas: addArchiveFlag(unidad.notas),
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja la unidad'
+      setUnidadError(message || 'No se pudo dar de baja la unidad')
       setUnidadActionLoadingId('')
       return
     }
@@ -265,13 +258,16 @@ export function SitioDetailPage() {
 
   const handleRestoreUnidad = async (unidad) => {
     setUnidadActionLoadingId(unidad.id)
-    const { error } = await supabase
-      .from('unidades')
-      .update({ notas: removeArchiveFlag(unidad.notas) })
-      .eq('id', unidad.id)
 
-    if (error) {
-      setUnidadError(toFriendlySupabaseError(error, 'No se pudo rehabilitar la unidad'))
+    try {
+      await apiClient.put(`/unidades/${unidad.id}`, {
+        identificador: unidad.identificador,
+        piso: unidad.piso,
+        notas: removeArchiveFlag(unidad.notas),
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar la unidad'
+      setUnidadError(message || 'No se pudo rehabilitar la unidad')
       setUnidadActionLoadingId('')
       return
     }

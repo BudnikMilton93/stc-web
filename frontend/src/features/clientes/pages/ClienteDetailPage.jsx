@@ -15,8 +15,7 @@ import {
   FiX,
   FiXCircle,
 } from 'react-icons/fi'
-import { supabase } from '../../../lib/supabase'
-import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
+import { apiClient, ApiError } from '../../../lib/apiClient'
 
 const SITIO_TIPOS = ['edificio', 'casa', 'oficina', 'comercio', 'otro']
 
@@ -104,21 +103,21 @@ export function ClienteDetailPage() {
         setLoading(true)
         setPageError('')
 
-        const [clienteResult, sitiosResult] = await Promise.all([
-          supabase
-            .from('clientes')
-            .select('id, tipo, nombre, dni_cuit, email, telefono, direccion, notas, created_at')
-            .eq('id', clienteId)
-            .maybeSingle(),
-          supabase
-            .from('sitios')
-            .select('id, cliente_id, nombre, tipo, direccion, ciudad, notas, created_at')
-            .eq('cliente_id', clienteId)
-            .order('created_at', { ascending: false }),
-        ])
+        let clienteData
+        let sitioRows
 
-        if (clienteResult.error) {
-          setPageError(toFriendlySupabaseError(clienteResult.error, 'No se pudo cargar el cliente'))
+        try {
+          ;[clienteData, sitioRows] = await Promise.all([
+            apiClient.get(`/clientes/${clienteId}`),
+            apiClient.get(`/sitios?clienteId=${clienteId}`),
+          ])
+        } catch (requestError) {
+          if (requestError instanceof ApiError && requestError.status === 404) {
+            setPageError('No se encontro el cliente solicitado.')
+          } else {
+            const message = requestError instanceof ApiError ? requestError.message : 'No se pudo cargar el cliente'
+            setPageError(message || 'No se pudo cargar el cliente')
+          }
           setCliente(null)
           setSitios([])
           setSitioUnidadCountMap({})
@@ -126,25 +125,7 @@ export function ClienteDetailPage() {
           return
         }
 
-        if (!clienteResult.data) {
-          setPageError('No se encontro el cliente solicitado.')
-          setCliente(null)
-          setSitios([])
-          setSitioUnidadCountMap({})
-          setLoading(false)
-          return
-        }
-
-        if (sitiosResult.error) {
-          setPageError(toFriendlySupabaseError(sitiosResult.error, 'No se pudieron cargar los sitios'))
-          setCliente(clienteResult.data)
-          setSitios([])
-          setSitioUnidadCountMap({})
-          setLoading(false)
-          return
-        }
-
-        const sitioRows = sitiosResult.data ?? []
+        sitioRows = sitioRows ?? []
         const activeSitioIds = sitioRows
           .filter((item) => !isArchivedRecord(item.notas))
           .map((item) => item.id)
@@ -152,31 +133,32 @@ export function ClienteDetailPage() {
         let unidadCountMap = {}
 
         if (activeSitioIds.length > 0) {
-          const unidadesResult = await supabase
-            .from('unidades')
-            .select('sitio_id, notas')
-            .in('sitio_id', activeSitioIds)
+          try {
+            const unidadesPorSitio = await Promise.all(
+              activeSitioIds.map((sitioId) => apiClient.get(`/unidades?sitioId=${sitioId}`)),
+            )
 
-          if (unidadesResult.error) {
-            setPageError(toFriendlySupabaseError(unidadesResult.error, 'No se pudo validar el estado de unidades'))
-            setCliente(clienteResult.data)
+            unidadCountMap = unidadesPorSitio.flat().reduce((acc, unidad) => {
+              if (isArchivedRecord(unidad.notas)) {
+                return acc
+              }
+
+              acc[unidad.sitioId] = (acc[unidad.sitioId] ?? 0) + 1
+              return acc
+            }, {})
+          } catch (requestError) {
+            const message =
+              requestError instanceof ApiError ? requestError.message : 'No se pudo validar el estado de unidades'
+            setPageError(message || 'No se pudo validar el estado de unidades')
+            setCliente(clienteData)
             setSitios(sitioRows)
             setSitioUnidadCountMap({})
             setLoading(false)
             return
           }
-
-          unidadCountMap = (unidadesResult.data ?? []).reduce((acc, unidad) => {
-            if (isArchivedRecord(unidad.notas)) {
-              return acc
-            }
-
-            acc[unidad.sitio_id] = (acc[unidad.sitio_id] ?? 0) + 1
-            return acc
-          }, {})
         }
 
-        setCliente(clienteResult.data)
+        setCliente(clienteData)
         setSitios(sitioRows)
         setSitioUnidadCountMap(unidadCountMap)
         setLoading(false)
@@ -229,29 +211,32 @@ export function ClienteDetailPage() {
     setSitioSaving(true)
     setSitioError('')
 
-    const payload = {
-      cliente_id: clienteId,
-      nombre: sitioForm.nombre.trim(),
-      tipo: sitioForm.tipo,
-      direccion: sitioForm.direccion.trim(),
-      ciudad: sitioForm.ciudad.trim() || null,
-      notas: sitioForm.notas.trim() || null,
-    }
+    const nombre = sitioForm.nombre.trim()
+    const direccion = sitioForm.direccion.trim()
 
-    if (!payload.nombre || !payload.direccion) {
+    if (!nombre || !direccion) {
       setSitioError('Nombre y direccion son obligatorios.')
       setSitioSaving(false)
       return
     }
 
-    const query = editingSitioId
-      ? supabase.from('sitios').update(payload).eq('id', editingSitioId)
-      : supabase.from('sitios').insert(payload)
+    const basePayload = {
+      nombre,
+      tipo: sitioForm.tipo,
+      direccion,
+      ciudad: sitioForm.ciudad.trim() || null,
+      notas: sitioForm.notas.trim() || null,
+    }
 
-    const { error } = await query
-
-    if (error) {
-      setSitioError(toFriendlySupabaseError(error, 'No se pudo guardar el sitio'))
+    try {
+      if (editingSitioId) {
+        await apiClient.put(`/sitios/${editingSitioId}`, basePayload)
+      } else {
+        await apiClient.post('/sitios', { ...basePayload, clienteId })
+      }
+    } catch (saveError) {
+      const message = saveError instanceof ApiError ? saveError.message : 'No se pudo guardar el sitio'
+      setSitioError(message || 'No se pudo guardar el sitio')
       setSitioSaving(false)
       return
     }
@@ -271,13 +256,18 @@ export function ClienteDetailPage() {
     }
 
     setSitioActionLoadingId(sitio.id)
-    const { error } = await supabase
-      .from('sitios')
-      .update({ notas: addArchiveFlag(sitio.notas) })
-      .eq('id', sitio.id)
 
-    if (error) {
-      setSitioError(toFriendlySupabaseError(error, 'No se pudo dar de baja el sitio'))
+    try {
+      await apiClient.put(`/sitios/${sitio.id}`, {
+        nombre: sitio.nombre,
+        tipo: sitio.tipo,
+        direccion: sitio.direccion,
+        ciudad: sitio.ciudad,
+        notas: addArchiveFlag(sitio.notas),
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja el sitio'
+      setSitioError(message || 'No se pudo dar de baja el sitio')
       setSitioActionLoadingId('')
       return
     }
@@ -288,13 +278,18 @@ export function ClienteDetailPage() {
 
   const handleRestoreSitio = async (sitio) => {
     setSitioActionLoadingId(sitio.id)
-    const { error } = await supabase
-      .from('sitios')
-      .update({ notas: removeArchiveFlag(sitio.notas) })
-      .eq('id', sitio.id)
 
-    if (error) {
-      setSitioError(toFriendlySupabaseError(error, 'No se pudo rehabilitar el sitio'))
+    try {
+      await apiClient.put(`/sitios/${sitio.id}`, {
+        nombre: sitio.nombre,
+        tipo: sitio.tipo,
+        direccion: sitio.direccion,
+        ciudad: sitio.ciudad,
+        notas: removeArchiveFlag(sitio.notas),
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar el sitio'
+      setSitioError(message || 'No se pudo rehabilitar el sitio')
       setSitioActionLoadingId('')
       return
     }
