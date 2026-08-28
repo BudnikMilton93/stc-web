@@ -11,10 +11,9 @@ import {
   FiUserPlus,
   FiUsers,
 } from 'react-icons/fi'
-import { supabase } from '../../../lib/supabase'
-import { toFriendlySupabaseError } from '../../../lib/supabaseErrors'
+import { apiClient, ApiError } from '../../../lib/apiClient'
 
-const TIPOS_ACTIVO = ['camara', 'portero', 'cerradura_magnetica', 'otro']
+const TIPOS_ACTIVO = ['camara', 'portero', 'cerraduraMagnetica', 'otro']
 
 const initialOcupanteForm = {
   nombre: '',
@@ -109,7 +108,7 @@ export function UnidadDetailPage() {
       return activos
     }
 
-    return activos.filter((item) => item.estado !== 'de_baja')
+    return activos.filter((item) => item.estado !== 'deBaja')
   }, [activos, includeInactiveActivos])
 
   const activeOcupantesCount = useMemo(
@@ -118,7 +117,7 @@ export function UnidadDetailPage() {
   )
 
   const activeActivosCount = useMemo(
-    () => activos.filter((item) => item.estado !== 'de_baja').length,
+    () => activos.filter((item) => item.estado !== 'deBaja').length,
     [activos],
   )
 
@@ -148,84 +147,64 @@ export function UnidadDetailPage() {
         setLoading(true)
         setPageError('')
 
-        const unidadResult = await supabase
-          .from('unidades')
-          .select('id, sitio_id, identificador, piso, notas, created_at')
-          .eq('id', unidadId)
-          .eq('sitio_id', sitioId)
-          .maybeSingle()
+        let unidadData
 
-        if (unidadResult.error) {
-          setPageError(toFriendlySupabaseError(unidadResult.error, 'No se pudo cargar la unidad'))
+        try {
+          unidadData = await apiClient.get(`/unidades/${unidadId}`)
+        } catch (requestError) {
+          if (requestError instanceof ApiError && requestError.status === 404) {
+            setPageError('No se encontro la unidad solicitada para este sitio.')
+          } else {
+            const message = requestError instanceof ApiError ? requestError.message : 'No se pudo cargar la unidad'
+            setPageError(message || 'No se pudo cargar la unidad')
+          }
           setLoading(false)
           return
         }
 
-        if (!unidadResult.data) {
+        if (!unidadData || unidadData.sitioId !== sitioId) {
           setPageError('No se encontro la unidad solicitada para este sitio.')
           setLoading(false)
           return
         }
 
-        const [sitioResult, clienteResult, ocupantesResult, activosResult] = await Promise.all([
-          supabase
-            .from('sitios')
-            .select('id, cliente_id, nombre, tipo, direccion')
-            .eq('id', sitioId)
-            .eq('cliente_id', clienteId)
-            .maybeSingle(),
-          supabase.from('clientes').select('id, nombre').eq('id', clienteId).maybeSingle(),
-          supabase
-            .from('ocupantes')
-            .select('id, unidad_id, nombre, telefono, email, es_titular, notas, created_at')
-            .eq('unidad_id', unidadId)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('activos')
-            .select(
-              'id, cliente_id, sitio_id, unidad_id, ocupante_id, tipo, marca, modelo, numero_serie, fecha_instalacion, garantia_hasta, estado, notas, created_at',
-            )
-            .eq('unidad_id', unidadId)
-            .order('created_at', { ascending: false }),
-        ])
+        let sitioData
+        let clienteData
+        let ocupantesData
+        let activosData
 
-        if (sitioResult.error || !sitioResult.data) {
-          setPageError(
-            sitioResult.error
-              ? toFriendlySupabaseError(sitioResult.error, 'No se pudo validar el sitio')
-              : 'No se encontro el sitio asociado a esta unidad.',
-          )
+        try {
+          ;[sitioData, clienteData, ocupantesData, activosData] = await Promise.all([
+            apiClient.get(`/sitios/${sitioId}`),
+            apiClient.get(`/clientes/${clienteId}`),
+            apiClient.get(`/ocupantes?unidadId=${unidadId}`),
+            apiClient.get(`/activos?unidadId=${unidadId}`),
+          ])
+        } catch (requestError) {
+          const message =
+            requestError instanceof ApiError ? requestError.message : 'No se pudo cargar la informacion de la unidad'
+          setPageError(message || 'No se pudo cargar la informacion de la unidad')
           setLoading(false)
           return
         }
 
-        if (clienteResult.error || !clienteResult.data) {
-          setPageError(
-            clienteResult.error
-              ? toFriendlySupabaseError(clienteResult.error, 'No se pudo validar el cliente')
-              : 'No se encontro el cliente asociado a este sitio.',
-          )
+        if (!sitioData || sitioData.clienteId !== clienteId) {
+          setPageError('No se encontro el sitio asociado a esta unidad.')
           setLoading(false)
           return
         }
 
-        if (ocupantesResult.error) {
-          setPageError(toFriendlySupabaseError(ocupantesResult.error, 'No se pudieron cargar los ocupantes'))
+        if (!clienteData) {
+          setPageError('No se encontro el cliente asociado a este sitio.')
           setLoading(false)
           return
         }
 
-        if (activosResult.error) {
-          setPageError(toFriendlySupabaseError(activosResult.error, 'No se pudieron cargar los activos'))
-          setLoading(false)
-          return
-        }
-
-        setUnidad(unidadResult.data)
-        setSitio(sitioResult.data)
-        setCliente(clienteResult.data)
-        setOcupantes(ocupantesResult.data ?? [])
-        setActivos(activosResult.data ?? [])
+        setUnidad(unidadData)
+        setSitio(sitioData)
+        setCliente(clienteData)
+        setOcupantes(ocupantesData ?? [])
+        setActivos(activosData ?? [])
         setLoading(false)
       },
     [clienteId, sitioId, unidadId],
@@ -262,7 +241,7 @@ export function UnidadDetailPage() {
       nombre: ocupante.nombre ?? '',
       telefono: ocupante.telefono ?? '',
       email: ocupante.email ?? '',
-      es_titular: Boolean(ocupante.es_titular),
+      es_titular: Boolean(ocupante.esTitular),
       notas: removeArchiveFlag(ocupante.notas) ?? '',
     })
     setOcupanteError('')
@@ -277,29 +256,31 @@ export function UnidadDetailPage() {
     setOcupanteSaving(true)
     setOcupanteError('')
 
-    const payload = {
-      unidad_id: unidadId,
-      nombre: ocupanteForm.nombre.trim(),
-      telefono: ocupanteForm.telefono.trim() || null,
-      email: ocupanteForm.email.trim() || null,
-      es_titular: ocupanteForm.es_titular,
-      notas: ocupanteForm.notas.trim() || null,
-    }
+    const nombre = ocupanteForm.nombre.trim()
 
-    if (!payload.nombre) {
+    if (!nombre) {
       setOcupanteError('El nombre del ocupante es obligatorio.')
       setOcupanteSaving(false)
       return
     }
 
-    const query = editingOcupanteId
-      ? supabase.from('ocupantes').update(payload).eq('id', editingOcupanteId).select('id, nombre').maybeSingle()
-      : supabase.from('ocupantes').insert(payload).select('id, nombre').maybeSingle()
+    const payload = {
+      nombre,
+      telefono: ocupanteForm.telefono.trim() || null,
+      email: ocupanteForm.email.trim() || null,
+      esTitular: ocupanteForm.es_titular,
+      notas: ocupanteForm.notas.trim() || null,
+    }
 
-    const { data, error } = await query
+    let data
 
-    if (error) {
-      setOcupanteError(toFriendlySupabaseError(error, 'No se pudo guardar el ocupante'))
+    try {
+      data = editingOcupanteId
+        ? await apiClient.put(`/ocupantes/${editingOcupanteId}`, payload)
+        : await apiClient.post('/ocupantes', { ...payload, unidadId })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo guardar el ocupante'
+      setOcupanteError(message || 'No se pudo guardar el ocupante')
       setOcupanteSaving(false)
       return
     }
@@ -325,13 +306,18 @@ export function UnidadDetailPage() {
     }
 
     setOcupanteActionLoadingId(ocupante.id)
-    const { error } = await supabase
-      .from('ocupantes')
-      .update({ notas: addArchiveFlag(ocupante.notas) })
-      .eq('id', ocupante.id)
 
-    if (error) {
-      setOcupanteError(toFriendlySupabaseError(error, 'No se pudo dar de baja el ocupante'))
+    try {
+      await apiClient.put(`/ocupantes/${ocupante.id}`, {
+        nombre: ocupante.nombre,
+        telefono: ocupante.telefono,
+        email: ocupante.email,
+        esTitular: ocupante.esTitular,
+        notas: addArchiveFlag(ocupante.notas),
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja el ocupante'
+      setOcupanteError(message || 'No se pudo dar de baja el ocupante')
       setOcupanteActionLoadingId('')
       return
     }
@@ -347,13 +333,18 @@ export function UnidadDetailPage() {
 
   const handleRestoreOcupante = async (ocupante) => {
     setOcupanteActionLoadingId(ocupante.id)
-    const { error } = await supabase
-      .from('ocupantes')
-      .update({ notas: removeArchiveFlag(ocupante.notas) })
-      .eq('id', ocupante.id)
 
-    if (error) {
-      setOcupanteError(toFriendlySupabaseError(error, 'No se pudo rehabilitar el ocupante'))
+    try {
+      await apiClient.put(`/ocupantes/${ocupante.id}`, {
+        nombre: ocupante.nombre,
+        telefono: ocupante.telefono,
+        email: ocupante.email,
+        esTitular: ocupante.esTitular,
+        notas: removeArchiveFlag(ocupante.notas),
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar el ocupante'
+      setOcupanteError(message || 'No se pudo rehabilitar el ocupante')
       setOcupanteActionLoadingId('')
       return
     }
@@ -377,13 +368,13 @@ export function UnidadDetailPage() {
       tipo: activo.tipo,
       marca: activo.marca ?? '',
       modelo: activo.modelo ?? '',
-      numero_serie: activo.numero_serie ?? '',
-      fecha_instalacion: activo.fecha_instalacion ?? '',
-      garantia_hasta: activo.garantia_hasta ?? '',
+      numero_serie: activo.numeroSerie ?? '',
+      fecha_instalacion: activo.fechaInstalacion ?? '',
+      garantia_hasta: activo.garantiaHasta ?? '',
       notas: activo.notas ?? '',
     })
 
-    const owner = selectableOcupantes.find((item) => item.id === activo.ocupante_id)
+    const owner = selectableOcupantes.find((item) => item.id === activo.ocupanteId)
     if (owner) {
       setSelectedOcupanteId(owner.id)
       setOcupanteQuery(owner.nombre)
@@ -410,28 +401,37 @@ export function UnidadDetailPage() {
       return
     }
 
+    const activoActual = editingActivoId ? activos.find((item) => item.id === editingActivoId) : null
+
     const payload = {
-      cliente_id: clienteId,
-      sitio_id: sitioId,
-      unidad_id: unidadId,
-      ocupante_id: selectedOcupanteId,
       tipo: activoForm.tipo,
       marca: activoForm.marca.trim() || null,
       modelo: activoForm.modelo.trim() || null,
-      numero_serie: activoForm.numero_serie.trim() || null,
-      fecha_instalacion: activoForm.fecha_instalacion || null,
-      garantia_hasta: activoForm.garantia_hasta || null,
+      numeroSerie: activoForm.numero_serie.trim() || null,
+      fechaInstalacion: activoForm.fecha_instalacion || null,
+      garantiaHasta: activoForm.garantia_hasta || null,
       notas: activoForm.notas.trim() || null,
     }
 
-    const query = editingActivoId
-      ? supabase.from('activos').update(payload).eq('id', editingActivoId)
-      : supabase.from('activos').insert(payload)
-
-    const { error } = await query
-
-    if (error) {
-      setActivoError(toFriendlySupabaseError(error, 'No se pudo guardar el activo'))
+    try {
+      if (editingActivoId) {
+        await apiClient.put(`/activos/${editingActivoId}`, {
+          ...payload,
+          ocupanteId: selectedOcupanteId,
+          estado: activoActual?.estado ?? 'activo',
+        })
+      } else {
+        await apiClient.post('/activos', {
+          ...payload,
+          clienteId,
+          sitioId,
+          unidadId,
+          ocupanteId: selectedOcupanteId,
+        })
+      }
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo guardar el activo'
+      setActivoError(message || 'No se pudo guardar el activo')
       setActivoSaving(false)
       return
     }
@@ -443,7 +443,7 @@ export function UnidadDetailPage() {
 
   const handleBajaActivo = async (activo) => {
     const confirmed = window.confirm(
-      `Dar de baja el activo "${activo.numero_serie || activo.tipo}"?`,
+      `Dar de baja el activo "${activo.numeroSerie || activo.tipo}"?`,
     )
 
     if (!confirmed) {
@@ -451,13 +451,22 @@ export function UnidadDetailPage() {
     }
 
     setActivoActionLoadingId(activo.id)
-    const { error } = await supabase
-      .from('activos')
-      .update({ estado: 'de_baja' })
-      .eq('id', activo.id)
 
-    if (error) {
-      setActivoError(toFriendlySupabaseError(error, 'No se pudo dar de baja el activo'))
+    try {
+      await apiClient.put(`/activos/${activo.id}`, {
+        tipo: activo.tipo,
+        ocupanteId: activo.ocupanteId,
+        marca: activo.marca,
+        modelo: activo.modelo,
+        numeroSerie: activo.numeroSerie,
+        fechaInstalacion: activo.fechaInstalacion,
+        garantiaHasta: activo.garantiaHasta,
+        notas: activo.notas,
+        estado: 'deBaja',
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja el activo'
+      setActivoError(message || 'No se pudo dar de baja el activo')
       setActivoActionLoadingId('')
       return
     }
@@ -468,13 +477,22 @@ export function UnidadDetailPage() {
 
   const handleRestoreActivo = async (activo) => {
     setActivoActionLoadingId(activo.id)
-    const { error } = await supabase
-      .from('activos')
-      .update({ estado: 'activo' })
-      .eq('id', activo.id)
 
-    if (error) {
-      setActivoError(toFriendlySupabaseError(error, 'No se pudo rehabilitar el activo'))
+    try {
+      await apiClient.put(`/activos/${activo.id}`, {
+        tipo: activo.tipo,
+        ocupanteId: activo.ocupanteId,
+        marca: activo.marca,
+        modelo: activo.modelo,
+        numeroSerie: activo.numeroSerie,
+        fechaInstalacion: activo.fechaInstalacion,
+        garantiaHasta: activo.garantiaHasta,
+        notas: activo.notas,
+        estado: 'activo',
+      })
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar el activo'
+      setActivoError(message || 'No se pudo rehabilitar el activo')
       setActivoActionLoadingId('')
       return
     }
@@ -724,7 +742,7 @@ export function UnidadDetailPage() {
                     <span>{item.email || 'Sin email'}</span>
                   </div>
                   <div className="data-grid-cell" role="cell" data-label="Rol">
-                    <span>{item.es_titular ? 'Titular' : 'No titular'}</span>
+                    <span>{item.esTitular ? 'Titular' : 'No titular'}</span>
                   </div>
                   <div className="data-grid-cell" role="cell" data-label="Estado">
                     {archived ? <span className="warning-chip">Dado de baja</span> : <span className="status-chip ok">Activo</span>}
@@ -879,7 +897,7 @@ export function UnidadDetailPage() {
                     onClick={() => pickOcupante(item.id, item.nombre)}
                   >
                     {item.nombre}
-                    {item.es_titular ? ' (titular)' : ''}
+                    {item.esTitular ? ' (titular)' : ''}
                   </button>
                 ))}
                 {filteredOcupantes.length === 0 ? (
@@ -943,7 +961,7 @@ export function UnidadDetailPage() {
                   <span role="columnheader">Acciones</span>
                 </div>
               {visibleActivos.map((item) => {
-                const owner = ocupantes.find((occ) => occ.id === item.ocupante_id)
+                const owner = ocupantes.find((occ) => occ.id === item.ocupanteId)
                 return (
                   <article className="data-grid-row" role="row" key={item.id}>
                     <div className="data-grid-cell data-grid-primary" role="cell" data-label="Activo">
@@ -951,13 +969,13 @@ export function UnidadDetailPage() {
                       <span>{(item.marca || 'Sin marca')} • {(item.modelo || 'Sin modelo')}</span>
                     </div>
                     <div className="data-grid-cell" role="cell" data-label="Serie">
-                      <span>{item.numero_serie || 'Sin serie'}</span>
+                      <span>{item.numeroSerie || 'Sin serie'}</span>
                     </div>
                     <div className="data-grid-cell" role="cell" data-label="Ocupante">
                       <span>{owner?.nombre || 'Sin asignar'}</span>
                     </div>
                     <div className="data-grid-cell" role="cell" data-label="Estado">
-                      {item.estado === 'de_baja' ? (
+                      {item.estado === 'deBaja' ? (
                         <span className="warning-chip">De baja</span>
                       ) : (
                         <span className="status-chip ok">Activo</span>
@@ -967,7 +985,7 @@ export function UnidadDetailPage() {
                       <button type="button" className="ghost-btn minimal-btn" onClick={() => startEditActivo(item)}>
                         Editar
                       </button>
-                      {item.estado === 'de_baja' ? (
+                      {item.estado === 'deBaja' ? (
                         <button
                           type="button"
                           className="ghost-btn minimal-btn"

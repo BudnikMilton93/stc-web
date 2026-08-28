@@ -11,15 +11,16 @@ public static class ActivosEndpoints
     {
         var group = app.MapGroup("/activos").RequireAuthorization("Staff");
 
-        group.MapGet("/", async (Guid? clienteId, Guid? sitioId, StcDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (Guid? clienteId, Guid? sitioId, Guid? unidadId, StcDbContext db, CancellationToken ct) =>
         {
             var query = db.Activos.AsNoTracking().AsQueryable();
             if (clienteId is not null) query = query.Where(a => a.ClienteId == clienteId);
             if (sitioId is not null) query = query.Where(a => a.SitioId == sitioId);
+            if (unidadId is not null) query = query.Where(a => a.UnidadId == unidadId);
 
             var activos = await query
                 .OrderByDescending(a => a.CreatedAt)
-                .Select(a => new ActivoResponse(a.Id, a.ClienteId, a.SitioId, a.UnidadId, a.OcupanteId, a.Tipo, a.Marca, a.Modelo, a.NumeroSerie, a.Estado))
+                .Select(a => new ActivoResponse(a.Id, a.ClienteId, a.SitioId, a.UnidadId, a.OcupanteId, a.Tipo, a.Marca, a.Modelo, a.NumeroSerie, a.FechaInstalacion, a.GarantiaHasta, a.Estado, a.Notas))
                 .ToListAsync(ct);
 
             return Results.Ok(activos);
@@ -30,7 +31,7 @@ public static class ActivosEndpoints
             var activo = await db.Activos
                 .AsNoTracking()
                 .Where(a => a.Id == id)
-                .Select(a => new ActivoResponse(a.Id, a.ClienteId, a.SitioId, a.UnidadId, a.OcupanteId, a.Tipo, a.Marca, a.Modelo, a.NumeroSerie, a.Estado))
+                .Select(a => new ActivoResponse(a.Id, a.ClienteId, a.SitioId, a.UnidadId, a.OcupanteId, a.Tipo, a.Marca, a.Modelo, a.NumeroSerie, a.FechaInstalacion, a.GarantiaHasta, a.Estado, a.Notas))
                 .SingleOrDefaultAsync(ct);
 
             return activo is null ? Results.NotFound() : Results.Ok(activo);
@@ -51,13 +52,14 @@ public static class ActivosEndpoints
                 NumeroSerie = request.NumeroSerie,
                 FechaInstalacion = request.FechaInstalacion,
                 GarantiaHasta = request.GarantiaHasta,
+                Notas = request.Notas,
             };
 
             db.Activos.Add(activo);
             await db.SaveChangesAsync(ct);
 
             return Results.Created($"/activos/{activo.Id}",
-                new ActivoResponse(activo.Id, activo.ClienteId, activo.SitioId, activo.UnidadId, activo.OcupanteId, activo.Tipo, activo.Marca, activo.Modelo, activo.NumeroSerie, activo.Estado));
+                new ActivoResponse(activo.Id, activo.ClienteId, activo.SitioId, activo.UnidadId, activo.OcupanteId, activo.Tipo, activo.Marca, activo.Modelo, activo.NumeroSerie, activo.FechaInstalacion, activo.GarantiaHasta, activo.Estado, activo.Notas));
         });
 
         group.MapPut("/{id:guid}", async (Guid id, ActualizarActivoRequest request, StcDbContext db, CancellationToken ct) =>
@@ -65,15 +67,19 @@ public static class ActivosEndpoints
             var activo = await db.Activos.FindAsync([id], ct);
             if (activo is null) return Results.NotFound();
 
+            activo.Tipo = request.Tipo;
+            activo.OcupanteId = request.OcupanteId;
             activo.Marca = request.Marca;
             activo.Modelo = request.Modelo;
             activo.NumeroSerie = request.NumeroSerie;
             activo.Estado = request.Estado;
+            activo.FechaInstalacion = request.FechaInstalacion;
             activo.GarantiaHasta = request.GarantiaHasta;
+            activo.Notas = request.Notas;
 
             await db.SaveChangesAsync(ct);
 
-            return Results.Ok(new ActivoResponse(activo.Id, activo.ClienteId, activo.SitioId, activo.UnidadId, activo.OcupanteId, activo.Tipo, activo.Marca, activo.Modelo, activo.NumeroSerie, activo.Estado));
+            return Results.Ok(new ActivoResponse(activo.Id, activo.ClienteId, activo.SitioId, activo.UnidadId, activo.OcupanteId, activo.Tipo, activo.Marca, activo.Modelo, activo.NumeroSerie, activo.FechaInstalacion, activo.GarantiaHasta, activo.Estado, activo.Notas));
         });
 
         group.MapDelete("/{id:guid}", async (Guid id, StcDbContext db, CancellationToken ct) =>
@@ -84,10 +90,15 @@ public static class ActivosEndpoints
     }
 }
 
-public record ActivoResponse(Guid Id, Guid ClienteId, Guid? SitioId, Guid? UnidadId, Guid? OcupanteId, TipoActivo Tipo, string? Marca, string? Modelo, string? NumeroSerie, EstadoActivo Estado);
+public record ActivoResponse(
+    Guid Id, Guid ClienteId, Guid? SitioId, Guid? UnidadId, Guid? OcupanteId, TipoActivo Tipo,
+    string? Marca, string? Modelo, string? NumeroSerie, DateOnly? FechaInstalacion, DateOnly? GarantiaHasta,
+    EstadoActivo Estado, string? Notas);
 
 public record CrearActivoRequest(
     Guid ClienteId, Guid? SitioId, Guid? UnidadId, Guid? OcupanteId, TipoActivo Tipo,
-    string? Marca, string? Modelo, string? NumeroSerie, DateOnly? FechaInstalacion, DateOnly? GarantiaHasta);
+    string? Marca, string? Modelo, string? NumeroSerie, DateOnly? FechaInstalacion, DateOnly? GarantiaHasta, string? Notas);
 
-public record ActualizarActivoRequest(string? Marca, string? Modelo, string? NumeroSerie, EstadoActivo Estado, DateOnly? GarantiaHasta);
+public record ActualizarActivoRequest(
+    TipoActivo Tipo, Guid? OcupanteId, string? Marca, string? Modelo, string? NumeroSerie,
+    DateOnly? FechaInstalacion, DateOnly? GarantiaHasta, EstadoActivo Estado, string? Notas);
