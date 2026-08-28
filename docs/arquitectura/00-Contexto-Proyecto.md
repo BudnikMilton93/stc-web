@@ -13,7 +13,7 @@ El sistema es de **uso interno**: solo lo usan el dueño y sus técnicos. No hay
 - Frontend: React + Vite, React Router.
 - Backend/API: **API propia en C# (.NET, minimal APIs + EF Core)**, ver [02-Backend-API.md](02-Backend-API.md). Reemplaza el plan original de Edge Functions.
 - Base de datos: Supabase (Postgres) — se sigue usando solo como el Postgres alojado (y Supabase Auth para el login). La API en C# es ahora la única capa que habla directo con la base para leer/escribir datos de negocio.
-- **Transición en curso**: el frontend hoy todavía habla directo a Supabase vía `supabase-js` (con RLS como capa de autorización) para clientes/sitios/unidades/ocupantes/activos. La migración a que consuma la API en C# está pendiente — mientras tanto, RLS sigue siendo la autorización real para esas pantallas.
+- **Migración completa**: el frontend ya consume la API en C# (vía `src/lib/apiClient.js`) para clientes/sitios/unidades/ocupantes/activos/inventario. `@supabase/supabase-js` se sigue usando únicamente para Supabase Auth (login, sesión) — no para datos de negocio. RLS pasa a ser defensa en profundidad, no la autorización primaria (ver [02-Backend-API.md](02-Backend-API.md)).
 
 ## Origen del esquema de base de datos
 

@@ -4,7 +4,7 @@ Este documento resume cómo está organizado el frontend de STC React Web hasta 
 
 ## Panorama general
 
-El proyecto está dividido en una capa de entrada, una capa de layout y un conjunto de features por dominio. La aplicación corre con React + Vite, usa React Router para navegación y Supabase como backend directo desde el frontend.
+El proyecto está dividido en una capa de entrada, una capa de layout y un conjunto de features por dominio. La aplicación corre con React + Vite, usa React Router para navegación, consume la API propia en C# ([02-Backend-API.md](02-Backend-API.md)) para datos de negocio, y usa Supabase Auth directo solo para login/sesión.
 
 La estructura actual prioriza:
 
@@ -40,29 +40,24 @@ Rutas principales:
 La zona `/panel-admin` vive protegida por `ProtectedRoute` y, para usuarios admin, `AdminOnlyRoute`.
 
 ### `src/context/AuthContext.jsx`
-Administra la sesión Supabase y el perfil interno en la tabla `usuarios`.
+Administra la sesión de Supabase Auth y el perfil interno de staff.
 
 Responsabilidades:
 
-- Cargar sesión actual
-- Validar si el usuario autenticado pertenece al staff activo
+- Cargar sesión actual (Supabase Auth, sin cambios)
+- Validar si el usuario autenticado pertenece al staff activo, vía `GET /usuarios/me` en la API (no consulta la tabla `usuarios` directo)
 - Exponer `signIn` y `logout`
 - Resolver rol (`admin` o `tecnico`)
 - Controlar estados de carga y error de autenticación
 
 ### `src/lib/supabase.ts`
-Cliente tipado de Supabase. Toma las variables de entorno:
+Cliente tipado de Supabase. Se usa **únicamente para Supabase Auth** (login, sesión) — no para datos de negocio. Toma las variables de entorno:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-### `src/lib/supabaseErrors.js`
-Normaliza errores del backend para mostrar mensajes más claros.
-
-Incluye tratamiento especial para:
-
-- RLS / permisos
-- duplicados por constraints únicas
+### `src/lib/apiClient.js`
+Cliente HTTP hacia la API en C# ([02-Backend-API.md](02-Backend-API.md)). Toma la URL base de `VITE_API_URL` (`.env`), adjunta automáticamente el JWT de la sesión activa de Supabase (`supabase.auth.getSession()`) como header `Authorization: Bearer`, y expone `get/post/put/patch/delete`. Los errores se exponen como `ApiError { status, body, message }`, con manejo genérico por ahora en cada pantalla.
 
 ### `src/types/database.types.ts`
 Tipos generados o mantenidos a mano para el cliente Supabase.
@@ -175,7 +170,7 @@ Incluye estilos para:
 
 ## Backend asociado
 
-> Esta sección describe el schema/RLS de Supabase, que el frontend sigue consultando directo hoy. Para la API en C# que reemplaza esta capa (todavía no consumida por el frontend), ver [02-Backend-API.md](02-Backend-API.md). Mapa visual: [03-Diagrama.html](03-Diagrama.html).
+> Esta sección describe el schema/RLS de Supabase, origen de la base de datos. El frontend ya no consulta estas tablas directo (salvo Auth) — consume la API en C# que reemplaza esa capa, ver [02-Backend-API.md](02-Backend-API.md). Mapa visual: [03-Diagrama.html](03-Diagrama.html).
 
 ### `supabase/migrations/20260724195455_schema.sql`
 Define el esquema principal:
@@ -214,7 +209,7 @@ El flujo principal que ya está armado es:
 
 ## Observación de estado actual
 
-- El CRUD de clientes, sitios, unidades, ocupantes y activos ya está operativo
-- La baja lógica está resuelta en la UI actual
-- Las pantallas de órdenes y usuarios todavía están pendientes de implementación funcional
-- La documentación se puede ampliar después con una segunda entrada para el modelo de datos y otra para el flujo de autenticación
+- El CRUD de clientes, sitios, unidades, ocupantes y activos ya está operativo y **consume la API en C#** (ver [02-Backend-API.md](02-Backend-API.md)), no Supabase directo.
+- La baja lógica está resuelta en la UI actual (flag de texto en `notas`, salvo activos que usan un campo `estado` real).
+- Las pantallas de órdenes y usuarios todavía están pendientes de implementación funcional (quedan para una próxima fase).
+- Pendiente antes de operar con datos reales: tests automatizados (unit/integration de API y frontend, e2e con Playwright) y una revisión de seguridad — ver "Próximos pasos" en [02-Backend-API.md](02-Backend-API.md).

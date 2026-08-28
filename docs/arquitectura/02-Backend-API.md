@@ -1,6 +1,6 @@
 # 02 - Backend API (C#)
 
-Este documento describe la API propia en C# que vive en [`api/`](../../api), pensada como reemplazo del acceso directo del frontend a Supabase (`supabase-js` + RLS). Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume datos *hoy* (todavía vía Supabase directo), ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html).
+Este documento describe la API propia en C# que vive en [`api/`](../../api), que reemplazó el acceso directo del frontend a Supabase (`supabase-js` + RLS) para datos de negocio. Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume esta API hoy, ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html).
 
 ## Por qué existe
 
@@ -10,7 +10,7 @@ El sistema es de uso interno (2-3 usuarios). El dueño quería mantener práctic
 
 - **Reemplaza**: la capa de REST/autorización que hoy resuelve PostgREST + RLS de Supabase, para los recursos de negocio (clientes, sitios, unidades, ocupantes, activos, órdenes, insumos, leads, usuarios).
 - **No reemplaza**: Supabase Auth (login) ni el Postgres en sí — la base de datos sigue siendo la misma, alojada en Supabase. La API se conecta a ese mismo Postgres vía el **connection pooler** (ver más abajo).
-- **Estado actual**: la API está armada y probada contra la base real, pero el frontend **todavía no la consume** — sigue hablando directo a Supabase. Es el próximo paso pendiente.
+- **Estado actual**: migración completa. El frontend consume esta API (vía `src/lib/apiClient.js`) para clientes, sitios, unidades, ocupantes, activos e inventario. Solo Supabase Auth (login/sesión) sigue yendo directo desde el frontend.
 
 ## Stack
 
@@ -66,10 +66,24 @@ Ver [`api/README.md`](../../api/README.md) para el comando exacto de `dotnet use
 
 Todos los recursos del schema están cubiertos (`GET`/`POST`/`PUT`: Staff, `DELETE`: Admin, salvo las excepciones ya mencionadas): `/clientes`, `/sitios`, `/unidades`, `/ocupantes`, `/activos`, `/ordenes`, `/insumos`, `/movimientos-stock`, `/leads`, `/usuarios`.
 
+`GET /usuarios/me` devuelve el usuario correspondiente al JWT actual (usa el claim `usuario_id` que ya agrega `CurrentUserEnrichmentMiddleware`, sin repetir la consulta por `auth_id`). Lo consume `AuthContext.jsx` en el frontend para resolver el perfil de staff después del login, en lugar de consultar la tabla `usuarios` directo contra Supabase.
+
+`GET /activos` acepta filtros opcionales combinables `clienteId`, `sitioId`, `unidadId` (no hay filtro server-side por `tipo` ni `numeroSerie` — el frontend los resuelve en memoria). `GET /sitios` y `GET /unidades` aceptan `clienteId`/`sitioId` respectivamente. `GET /ocupantes` acepta `unidadId`.
+
 `orden_items` y `adjuntos` (dos tablas del schema) todavía no tienen endpoint propio — quedan como sub-recursos a resolver cuando el frontend los necesite (ver `api/README.md`).
+
+## Ajustes hechos durante la migración del frontend
+
+Al conectar el frontend real contra la API se encontraron y corrigieron varios problemas que no eran evidentes sin probar la integración end-to-end:
+
+- **CORS**: no estaba configurado; se agregó una policy solo para `Development` habilitando los orígenes de Vite (`localhost:5173`/`5174`).
+- **`MapInboundClaims`**: ASP.NET Core remapea por default el claim `sub` del JWT a un claim type interno, por lo que `CurrentUserEnrichmentMiddleware` nunca lo encontraba y ninguna policy `Staff`/`Admin` funcionaba. Se deshabilitó ese remapeo en `Program.cs`.
+- **Serialización de enums**: sin un converter explícito, `TipoCliente`/`TipoActivo`/`EstadoActivo`/`RolUsuario` se serializaban como números en vez de los strings en camelCase (`"persona"`, `"cerraduraMagnetica"`) que espera el frontend. Se agregó un `JsonStringEnumConverter(JsonNamingPolicy.CamelCase)` global.
+- **DTOs incompletos**: varios `Response`/`Request` no exponían campos que ya existían en las entidades de dominio y que el frontend necesitaba — `notas` en Cliente/Sitio/Unidad/Ocupante/Activo, `fechaInstalacion` en Activo, y `OcupanteId` en `ActualizarActivoRequest` (sin este último, reasignar el ocupante de un activo al editarlo, o dar de baja/rehabilitar un activo, borraba silenciosamente su asignación).
 
 ## Próximos pasos
 
-1. Migrar el frontend para que consuma esta API en vez de `@supabase/supabase-js` para datos de negocio (Supabase Auth se mantiene para el login).
-2. Una vez migrado, evaluar si vale la pena desactivar/endurecer más las policies RLS actuales (hoy protegen el escenario "frontend habla directo con la anon key"; si eso deja de pasar, esa capa pasa a ser defensa en profundidad, no la autorización primaria).
-3. Endpoints para `orden_items` y `adjuntos`.
+1. Evaluar si vale la pena endurecer más las policies RLS actuales (hoy protegen el escenario "frontend habla directo con la anon key"; con la migración completa, esa capa pasa a ser defensa en profundidad, no la autorización primaria).
+2. Endpoints para `orden_items` y `adjuntos`, cuando se implementen las pantallas de Órdenes y Usuarios (hoy son placeholders).
+3. Reforzar la solución con tests automatizados (unit/integration del lado de la API, unit del lado del frontend, y e2e con Playwright para los flujos críticos) y una revisión de seguridad, antes de operar con datos reales de producción.
+4. Definir dónde y cómo se hospeda la API en un ambiente de producción — hoy solo corre en local (`localhost:5004`).
