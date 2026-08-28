@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Stc.Api.Auth;
 using Stc.Domain.Entities;
 using Stc.Domain.Enums;
 using Stc.Infrastructure;
@@ -9,7 +11,20 @@ public static class UsuariosEndpoints
 {
     public static void MapUsuariosEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/usuarios").RequireAuthorization("Staff");
+        var group = app.MapGroup("/usuarios").RequireAuthorization("Staff"); 
+
+        group.MapGet("/me", async (ClaimsPrincipal user, StcDbContext db, CancellationToken ct) =>
+        {
+            var usuarioId = user.GetUsuarioId();
+
+            var usuario = await db.Usuarios
+                .AsNoTracking()
+                .Where(u => u.Id == usuarioId)
+                .Select(u => new UsuarioResponse(u.Id, u.Nombre, u.Email, u.Rol, u.Activo))
+                .SingleOrDefaultAsync(ct);
+
+            return usuario is null ? Results.NotFound() : Results.Ok(usuario);
+        });
 
         group.MapGet("/", async (StcDbContext db, CancellationToken ct) =>
         {
