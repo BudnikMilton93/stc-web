@@ -8,8 +8,8 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 
 | # | Item | Estado | Notas |
 |---|---|---|---|
-| 1 | Tests de la API (xUnit + `WebApplicationFactory`) | Pendiente | Prioridad más alta — ahí vive la autorización que reemplazó RLS |
-| 2 | CI básico (build + lint en cada push/PR) | Pendiente | Requisito para que los tests del punto 1 se sostengan |
+| 1 | Tests de la API (xUnit + `WebApplicationFactory`) | Hecho | `464e294` — 17 tests en `api/src/Stc.Api.Tests`, Postgres real vía Testcontainers |
+| 2 | CI básico (build + lint en cada push/PR) | Hecho | `.github/workflows/ci.yml` — build+lint del frontend, build+tests de la API |
 | 3 | Revisión de seguridad | Pendiente | Incluye CORS de producción sin definir y repaso de policies RLS como defensa en profundidad |
 | 4 | Tests de frontend (Vitest + Testing Library) | Pendiente | Después de la API |
 | 5 | E2E de flujos críticos (Playwright) | Pendiente | Login → cliente → sitio → unidad → activo |
@@ -17,16 +17,20 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 
 ## Detalle
 
-### 1. Tests de la API
-Sin cobertura hoy. En cuanto el sistema opere con datos reales de clientes, un cambio sin querer en la policy de autorización (`Activo`, la única que queda tras colapsar el esquema staff/admin en `20260901000000_usuario_unico_sin_roles.sql`) no lo detecta nadie hasta que alguien ve datos que no debería. Empezar por los endpoints que consumían esa autorización más de cerca (`OrdenesEndpoints.cs`, `UsuariosEndpoints.cs`).
+### 1. Tests de la API — Hecho (`464e294`)
+`api/src/Stc.Api.Tests`: xUnit + `WebApplicationFactory`, con Postgres real vía Testcontainers (no InMemory/SQLite: la API mapea enums nativos de Postgres). 17 tests cubriendo la policy única `Activo`, el enriquecimiento de claims (`CurrentUserEnrichmentMiddlewareTests`), `OrdenesEndpoints`, `UsuariosEndpoints`, `LeadsEndpoints` (incluido el `POST` público), `MovimientosStockEndpoints` (cálculo de stock) y un CRUD de punta a punta sobre `ClientesEndpoints`. No corren contra `supabase/migrations/20260724195456_rls_policies.sql` ni `20260901000000_usuario_unico_sin_roles.sql` (dependen de `auth.uid()`/rol `authenticated`, inexistentes en un Postgres vanilla) — la autorización real de los tests es la policy de la API, RLS queda cubierto por el punto 3.
 
-### 2. CI/CD
-No existe `.github/workflows` todavía. Sin esto, tests que nadie corre en cada PR se pudren rápido — es lo que hace que el punto 1 valga la pena a mediano plazo. Alcance inicial: build de `api/` y `frontend/`, lint del frontend (`npm run lint`), y correr los tests de la API en cuanto existan.
+### 2. CI/CD — Hecho
+`.github/workflows/ci.yml` (GitHub Actions), dos jobs independientes en paralelo:
+- **frontend**: `npm ci` → `npm run lint` (oxlint) → `npm run build`.
+- **api**: `dotnet restore` → `dotnet build --configuration Release` → `dotnet test --configuration Release` (corre los 17 tests de `Stc.Api.Tests` contra un Postgres real vía Testcontainers; `ubuntu-latest` ya trae Docker Engine corriendo, no requiere configuración extra).
+
+Deliberadamente sin `scan-dependencies`/`scan-for-secrets` todavía: `npm audit` ya reporta 3 vulnerabilidades altas preexistentes (`nanoid`, `react-router`) que agregarían un gate roto desde el día uno. Eso queda para el punto 3 (revisión de seguridad), donde corresponde decidir si se resuelven las vulnerabilidades antes de bloquear el pipeline con ese gate.
 
 ### 3. Revisión de seguridad
 Ya anotada como pendiente en `docs/arquitectura/02-Backend-API.md`. Dos puntos concretos detectados:
 - **CORS de producción sin definir**: `api/src/Stc.Api/Program.cs` solo habilita el origen de Vite en desarrollo (`FrontendDevCorsPolicy`, líneas ~68-79); no hay policy para producción.
-- **RLS como defensa en profundidad**: repasar si las policies de `supabase/migrations/20260724195456_rls_policies.sql` siguen siendo una segunda línea razonable ahora que la autorización primaria vive en la API.
+- **RLS como defensa en profundidad**: repasar si la policy única `is_activo()` (`supabase/migrations/20260901000000_usuario_unico_sin_roles.sql`, que colapsó el esquema staff/admin original de `20260724195456_rls_policies.sql`) sigue siendo una segunda línea razonable ahora que la autorización primaria vive en la API.
 
 ### 4-5. Tests de frontend y E2E
 Sin cobertura. Frontend después de la API (menor blast radius si falla). E2E acotado a los flujos críticos de instalación, no como reemplazo de cobertura unitaria.
