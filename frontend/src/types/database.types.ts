@@ -602,7 +602,6 @@ export type Database = {
           email: string
           id: string
           nombre: string
-          rol: Database["public"]["Enums"]["rol_usuario"]
         }
         Insert: {
           activo?: boolean
@@ -611,7 +610,6 @@ export type Database = {
           email: string
           id?: string
           nombre: string
-          rol?: Database["public"]["Enums"]["rol_usuario"]
         }
         Update: {
           activo?: boolean
@@ -620,7 +618,6 @@ export type Database = {
           email?: string
           id?: string
           nombre?: string
-          rol?: Database["public"]["Enums"]["rol_usuario"]
         }
         Relationships: []
       }
@@ -629,8 +626,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      is_admin: { Args: never; Returns: boolean }
-      is_staff: { Args: never; Returns: boolean }
+      is_activo: { Args: never; Returns: boolean }
     }
     Enums: {
       estado_activo: "activo" | "de_baja" | "en_reparacion"
@@ -642,7 +638,6 @@ export type Database = {
         | "resuelto"
         | "cancelado"
       prioridad_orden: "baja" | "normal" | "alta" | "urgente"
-      rol_usuario: "admin" | "tecnico"
       tipo_activo: "camara" | "portero" | "cerradura_magnetica" | "otro"
       tipo_cliente: "persona" | "empresa" | "consorcio"
       tipo_servicio: "instalacion" | "mantenimiento" | "otro"
@@ -787,7 +782,6 @@ export const Constants = {
         "cancelado",
       ],
       prioridad_orden: ["baja", "normal", "alta", "urgente"],
-      rol_usuario: ["admin", "tecnico"],
       tipo_activo: ["camara", "portero", "cerradura_magnetica", "otro"],
       tipo_cliente: ["persona", "empresa", "consorcio"],
       tipo_servicio: ["instalacion", "mantenimiento", "otro"],

@@ -5,13 +5,10 @@ const menuItems = [
   { to: '/panel-admin/clientes', label: 'Clientes' },
   { to: '/panel-admin/ordenes', label: 'Ordenes de trabajo' },
   { to: '/panel-admin/inventario', label: 'Activos globales' },
-  { to: '/panel-admin/usuarios', label: 'Usuarios', adminOnly: true },
 ]
 
 export function AuthenticatedLayout() {
-  const { role, staffProfile, logout } = useAuth()
-
-  const visibleItems = menuItems.filter((item) => !item.adminOnly || role === 'admin')
+  const { staffProfile, logout } = useAuth()
 
   return (
     <div className="auth-shell">
@@ -19,7 +16,7 @@ export function AuthenticatedLayout() {
         <p className="sidebar-title">Panel STC</p>
 
         <nav className="sidebar-nav">
-          {visibleItems.map((item) => (
+          {menuItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

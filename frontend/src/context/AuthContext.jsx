@@ -139,7 +139,6 @@ export function AuthProvider({ children }) {
       session,
       user: session?.user ?? null,
       staffProfile,
-      role: staffProfile?.rol ?? null,
       loading,
       authError,
       isAuthenticated: Boolean(session),
