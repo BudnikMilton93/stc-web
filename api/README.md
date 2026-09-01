@@ -90,8 +90,11 @@ cuando el frontend los necesite.
 
 ## Proximos pasos
 
-- Cargar la connection string con `dotnet user-secrets` (ver arriba) y
-  correr `dotnet run --project src/Stc.Api` para probar contra la base real.
-- Migrar el frontend (`frontend/`) de `@supabase/supabase-js` para datos
-  a llamar esta API — Supabase Auth se puede seguir usando solo para login.
+- Migracion del frontend completa: `frontend/` ya llama a esta API para
+  todo dato de negocio (`src/lib/apiClient.js`); `@supabase/supabase-js`
+  queda solo para Supabase Auth (login/sesion).
+- Sin tests todavia en ninguna capa (API ni frontend) — candidato:
+  xUnit + `WebApplicationFactory` para la API.
+- Sin CORS definido para produccion (`Program.cs` solo habilita el
+  origen de Vite en desarrollo).
 - Endpoints para `orden_items` y `adjuntos` cuando se necesiten.
