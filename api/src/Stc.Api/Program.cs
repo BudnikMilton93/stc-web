@@ -12,9 +12,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
-// Sin este converter los enums (TipoCliente, RolUsuario, etc.) se serializan
+// Sin este converter los enums (TipoCliente, EstadoOrden, etc.) se serializan
 // como numeros, lo que no coincide con los valores en minusculas ('persona',
-// 'admin', etc.) que ya usa el frontend. CamelCase sobre el nombre del enum
+// 'pendiente', etc.) que ya usa el frontend. CamelCase sobre el nombre del enum
 // en PascalCase produce exactamente esos valores (Persona -> persona).
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -62,8 +62,7 @@ builder.Services
     });
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("Staff", p => p.RequireClaim("activo", "true"))
-    .AddPolicy("Admin", p => p.RequireClaim("rol", "Admin"));
+    .AddPolicy("Activo", p => p.RequireClaim("activo", "true"));
 
 const string FrontendDevCorsPolicy = "FrontendDev";
 
@@ -104,3 +103,7 @@ app.MapLeadsEndpoints();
 app.MapUsuariosEndpoints();
 
 app.Run();
+
+// Necesario para que WebApplicationFactory<Program> (Stc.Api.Tests) pueda
+// referenciar este entry point desde otro assembly. No cambia comportamiento.
+public partial class Program { }

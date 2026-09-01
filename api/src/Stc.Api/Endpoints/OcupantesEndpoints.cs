@@ -8,7 +8,7 @@ public static class OcupantesEndpoints
 {
     public static void MapOcupantesEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/ocupantes").RequireAuthorization("Staff");
+        var group = app.MapGroup("/ocupantes").RequireAuthorization("Activo");
 
         group.MapGet("/", async (Guid? unidadId, StcDbContext db, CancellationToken ct) =>
         {
@@ -74,7 +74,7 @@ public static class OcupantesEndpoints
         {
             var filas = await db.Ocupantes.Where(o => o.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        });
     }
 }
 

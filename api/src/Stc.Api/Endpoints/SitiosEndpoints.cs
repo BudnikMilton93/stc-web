@@ -9,7 +9,7 @@ public static class SitiosEndpoints
 {
     public static void MapSitiosEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/sitios").RequireAuthorization("Staff");
+        var group = app.MapGroup("/sitios").RequireAuthorization("Activo");
 
         group.MapGet("/", async (Guid? clienteId, StcDbContext db, CancellationToken ct) =>
         {
@@ -75,7 +75,7 @@ public static class SitiosEndpoints
         {
             var filas = await db.Sitios.Where(s => s.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        });
     }
 }
 

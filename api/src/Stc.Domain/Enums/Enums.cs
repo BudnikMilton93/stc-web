@@ -15,5 +15,3 @@ public enum EstadoOrden { Pendiente, EnProceso, EsperandoMaterial, Resuelto, Can
 public enum PrioridadOrden { Baja, Normal, Alta, Urgente }
 
 public enum EstadoLead { Nuevo, Contactado, Convertido, Descartado }
-
-public enum RolUsuario { Admin, Tecnico }

@@ -8,7 +8,7 @@ public static class MovimientosStockEndpoints
 {
     public static void MapMovimientosStockEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/movimientos-stock").RequireAuthorization("Staff");
+        var group = app.MapGroup("/movimientos-stock").RequireAuthorization("Activo");
 
         group.MapGet("/", async (Guid? insumoId, StcDbContext db, CancellationToken ct) =>
         {

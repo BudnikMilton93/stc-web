@@ -22,7 +22,6 @@ public static class ServiceCollectionExtensions
         dataSourceBuilder.MapEnum<EstadoOrden>("estado_orden");
         dataSourceBuilder.MapEnum<PrioridadOrden>("prioridad_orden");
         dataSourceBuilder.MapEnum<EstadoLead>("estado_lead");
-        dataSourceBuilder.MapEnum<RolUsuario>("rol_usuario");
 
         var dataSource = dataSourceBuilder.Build();
         services.AddSingleton(dataSource);
@@ -40,7 +39,6 @@ public static class ServiceCollectionExtensions
                     o.MapEnum<EstadoOrden>("estado_orden");
                     o.MapEnum<PrioridadOrden>("prioridad_orden");
                     o.MapEnum<EstadoLead>("estado_lead");
-                    o.MapEnum<RolUsuario>("rol_usuario");
                 })
                 .UseSnakeCaseNamingConvention();
         });

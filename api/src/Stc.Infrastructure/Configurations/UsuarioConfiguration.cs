@@ -12,6 +12,5 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         b.HasKey(x => x.Id);
         b.HasIndex(x => x.AuthId).IsUnique();
         b.HasIndex(x => x.Email).IsUnique();
-        b.Property(x => x.Rol).HasColumnType("rol_usuario");
     }
 }

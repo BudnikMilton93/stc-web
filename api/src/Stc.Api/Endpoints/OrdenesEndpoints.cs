@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Stc.Api.Auth;
 using Stc.Domain.Entities;
 using Stc.Domain.Enums;
 using Stc.Infrastructure;
@@ -10,7 +9,7 @@ public static class OrdenesEndpoints
 {
     public static void MapOrdenesEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/ordenes").RequireAuthorization("Staff");
+        var group = app.MapGroup("/ordenes").RequireAuthorization("Activo");
 
         group.MapGet("/", async (Guid? clienteId, EstadoOrden? estado, StcDbContext db, CancellationToken ct) =>
         {
@@ -60,16 +59,10 @@ public static class OrdenesEndpoints
                 new OrdenResponse(orden.Id, orden.ClienteId, orden.SitioId, orden.ActivoId, orden.TecnicoId, orden.TipoServicio, orden.Descripcion, orden.Estado, orden.Prioridad, orden.FechaSolicitud, orden.FechaProgramada));
         });
 
-        // Caso especial (no cubierto por una policy generica, ver RLS original):
-        // el update lo puede hacer el admin o el tecnico asignado a esa orden puntual.
-        group.MapPut("/{id:guid}", async (Guid id, ActualizarOrdenRequest request, HttpContext http, StcDbContext db, CancellationToken ct) =>
+        group.MapPut("/{id:guid}", async (Guid id, ActualizarOrdenRequest request, StcDbContext db, CancellationToken ct) =>
         {
             var orden = await db.OrdenesTrabajo.FindAsync([id], ct);
             if (orden is null) return Results.NotFound();
-
-            var esAdmin = http.User.IsAdmin();
-            var esTecnicoAsignado = orden.TecnicoId == http.User.GetUsuarioId();
-            if (!esAdmin && !esTecnicoAsignado) return Results.Forbid();
 
             orden.Estado = request.Estado;
             orden.TecnicoId = request.TecnicoId;
@@ -86,7 +79,7 @@ public static class OrdenesEndpoints
         {
             var filas = await db.OrdenesTrabajo.Where(o => o.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        });
     }
 }
 

@@ -9,7 +9,7 @@ public static class ClientesEndpoints
 {
     public static void MapClientesEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/clientes").RequireAuthorization("Staff");
+        var group = app.MapGroup("/clientes").RequireAuthorization("Activo");
 
         group.MapGet("/", async (StcDbContext db, CancellationToken ct) =>
         {
@@ -78,7 +78,7 @@ public static class ClientesEndpoints
         {
             var filas = await db.Clientes.Where(c => c.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        });
     }
 }
 

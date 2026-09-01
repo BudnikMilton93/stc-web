@@ -8,7 +8,7 @@ public static class InsumosEndpoints
 {
     public static void MapInsumosEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/insumos").RequireAuthorization("Staff");
+        var group = app.MapGroup("/insumos").RequireAuthorization("Activo");
 
         group.MapGet("/", async (StcDbContext db, CancellationToken ct) =>
         {
@@ -75,7 +75,7 @@ public static class InsumosEndpoints
         {
             var filas = await db.Insumos.Where(i => i.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        });
     }
 }
 

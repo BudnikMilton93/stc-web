@@ -40,7 +40,7 @@ public static class LeadsEndpoints
                 .ToListAsync(ct);
 
             return Results.Ok(leads);
-        }).RequireAuthorization("Staff");
+        }).RequireAuthorization("Activo");
 
         group.MapPut("/{id:guid}", async (Guid id, ActualizarLeadRequest request, StcDbContext db, CancellationToken ct) =>
         {
@@ -53,13 +53,13 @@ public static class LeadsEndpoints
             await db.SaveChangesAsync(ct);
 
             return Results.Ok(new LeadResponse(lead.Id, lead.Nombre, lead.Telefono, lead.Email, lead.ServicioInteres, lead.Mensaje, lead.Estado, lead.ClienteId));
-        }).RequireAuthorization("Staff");
+        }).RequireAuthorization("Activo");
 
         group.MapDelete("/{id:guid}", async (Guid id, StcDbContext db, CancellationToken ct) =>
         {
             var filas = await db.Leads.Where(l => l.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        }).RequireAuthorization("Activo");
     }
 }
 

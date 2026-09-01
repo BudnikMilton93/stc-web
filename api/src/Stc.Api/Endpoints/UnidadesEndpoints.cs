@@ -8,7 +8,7 @@ public static class UnidadesEndpoints
 {
     public static void MapUnidadesEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/unidades").RequireAuthorization("Staff");
+        var group = app.MapGroup("/unidades").RequireAuthorization("Activo");
 
         group.MapGet("/", async (Guid? sitioId, StcDbContext db, CancellationToken ct) =>
         {
@@ -70,7 +70,7 @@ public static class UnidadesEndpoints
         {
             var filas = await db.Unidades.Where(u => u.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
-        }).RequireAuthorization("Admin");
+        });
     }
 }
 
