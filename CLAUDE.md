@@ -67,18 +67,17 @@ Tres proyectos:
 
 **Autenticación**: Supabase migró a JWT Signing Keys (claves públicas rotables) — no hay JWT secret que configurar. La API valida tokens descargando esas claves del endpoint JWKS del proyecto (`Auth/JwksRetriever.cs` + `ConfigurationManager<JsonWebKeySet>` en `Program.cs`), con cache y renovación automática.
 
-**Autorización**, replicando el esquema que tenían las policies RLS de Supabase (`supabase/migrations/20260724195456_rls_policies.sql`):
+**Autorización**: el sistema es de un solo usuario admin, sin roles (ver `supabase/migrations/20260901000000_usuario_unico_sin_roles.sql`, que colapsó el esquema staff/admin previo):
 
-- Policy **Staff** (cualquier usuario activo en la tabla `usuarios`): lectura/creación/actualización de la mayoría de recursos.
-- Policy **Admin**: además puede borrar.
-- Excepción en `PUT /ordenes/{id}`: admin o el técnico asignado a esa orden — chequeo manual en el handler, no una policy genérica.
+- Policy única **Activo** (`RequireClaim("activo","true")`): cualquier usuario activo en la tabla `usuarios` puede leer/crear/actualizar/borrar la mayoría de recursos. No hay distinción de roles ni de delete-only-admin.
+- `PUT /ordenes/{id}` ya no tiene chequeo manual de "admin o técnico asignado" — el campo `TecnicoId` en `OrdenTrabajo` se mantiene como dato operativo/histórico, sin efecto en la autorización.
 - Excepción en `POST /leads`: público (`AllowAnonymous`), sin sesión.
 
-`Auth/CurrentUserEnrichmentMiddleware.cs` toma el `sub` del JWT de Supabase, busca el usuario correspondiente en la tabla `usuarios` y agrega los claims `rol`/`activo`/`usuario_id` que consumen las policies y los endpoints. Corre después de `UseAuthentication()` y antes de `UseAuthorization()` en `Program.cs`.
+`Auth/CurrentUserEnrichmentMiddleware.cs` toma el `sub` del JWT de Supabase, busca el usuario correspondiente en la tabla `usuarios` y agrega los claims `activo`/`usuario_id` que consumen la policy y los endpoints. Corre después de `UseAuthentication()` y antes de `UseAuthorization()` en `Program.cs`.
 
 Los enums se serializan en camelCase (`JsonStringEnumConverter(JsonNamingPolicy.CamelCase)` en `Program.cs`) para coincidir con los valores en minúsculas que ya espera el frontend (`Persona` -> `persona`).
 
-Nuevos endpoints de recursos deben seguir el patrón de `Endpoints/ClientesEndpoints.cs` (GET/POST/PUT: policy Staff, DELETE: policy Admin), salvo que el recurso necesite una regla de autorización distinta (como `ordenes` o `leads`).
+Nuevos endpoints de recursos deben seguir el patrón de `Endpoints/ClientesEndpoints.cs` (`RequireAuthorization("Activo")` a nivel de grupo, sin distinción por método), salvo que el recurso necesite una regla de autorización distinta (como `leads`).
 
 `orden_items` y `adjuntos` son las únicas tablas del schema sin endpoint propio todavía — candidatas a resolverse como sub-recursos (`/ordenes/{id}/items`, `/adjuntos?entidad_tipo=...&entidad_id=...`).
 
@@ -86,9 +85,9 @@ Nuevos endpoints de recursos deben seguir el patrón de `Endpoints/ClientesEndpo
 
 Estructura por features de dominio bajo `src/features/<dominio>/pages/`. Relación de datos del dominio principal: Cliente -> Sitios -> Unidades -> Ocupantes / Activos, con Activo -> Ocupante asignado.
 
-Rutas (`src/App.tsx`) bajo `/panel-admin` están protegidas por `components/auth/ProtectedRoute.jsx` y, para vistas solo-admin, `components/auth/AdminOnlyRoute.jsx`. El shell autenticado (sidebar, header, logout) es `components/layout/AuthenticatedLayout.jsx`.
+Rutas (`src/App.tsx`) bajo `/panel-admin` están protegidas por `components/auth/ProtectedRoute.jsx`. El sistema es de un solo usuario admin, sin roles, así que no hay vistas admin-only ni `AdminOnlyRoute.jsx`. El shell autenticado (sidebar, header, logout) es `components/layout/AuthenticatedLayout.jsx`.
 
-`src/features/ordenes` y `src/features/usuarios` son placeholders sin CRUD funcional todavía (pendientes de implementación).
+`src/features/ordenes` es un placeholder sin CRUD funcional todavía (pendiente de implementación). No hay `src/features/usuarios`: se eliminó junto con la ruta `/panel-admin/usuarios` al simplificar el sistema a un solo usuario admin.
 
 `src/types/database.types.ts` son los tipos generados desde el schema de Supabase — regenerar con el comando de arriba después de cualquier cambio de esquema para no quedar desincronizado.
 

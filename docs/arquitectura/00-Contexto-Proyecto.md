@@ -1,6 +1,6 @@
 # 00 - Contexto del proyecto
 
-Este documento resume el contexto de negocio del sistema y las decisiones de origen sobre cómo se armó la base de datos. Para el detalle de cómo está organizado el frontend, ver [01-Estructura.MD](01-Estructura.MD). Para la API en C#, ver [02-Backend-API.md](02-Backend-API.md). Para un mapa visual de todo esto junto, ver [03-Diagrama.html](03-Diagrama.html) (abrir en el navegador).
+Este documento resume el contexto de negocio del sistema y las decisiones de origen sobre cómo se armó la base de datos. Para el detalle de cómo está organizado el frontend, ver [01-Estructura.MD](01-Estructura.MD). Para la API en C#, ver [02-Backend-API.md](02-Backend-API.md). Para un mapa visual de todo esto junto, ver [03-Diagrama.html](03-Diagrama.html) (abrir en el navegador). Para la deuda conocida y el plan para resolverla, ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md).
 
 ## Qué es el sistema
 
@@ -30,6 +30,14 @@ El negocio dejó de ofrecer reparación de equipos informáticos y venta de insu
 - `supabase/migrations/20260827140000_narrow_service_scope.sql` — recorta `tipo_servicio` (queda `instalacion`, `mantenimiento`, `otro`) y `tipo_activo` (queda `camara`, `portero`, `cerradura_magnetica`, `otro`); renombra `esperando_repuesto` a `esperando_material` en `estado_orden`; redocumenta `insumos` como materiales de instalación (stock interno), no catálogo de venta al público.
 
 La tabla `insumos` se mantiene, redefinida: sirve para llevar stock de materiales de instalación (cámaras, cerraduras, cableado, etc.), no para venta al público. Sigue relacionada con `orden_items` (qué material se usó en una orden) y `movimientos_stock` (entradas/salidas de stock).
+
+## Simplificación a usuario único, sin roles
+
+El sistema pasó a ser operado por un solo usuario admin, sin distinción de roles (antes había `admin`/`tecnico`). Esto generó otra migración de ajuste:
+
+- `supabase/migrations/20260901000000_usuario_unico_sin_roles.sql` — colapsa las funciones RLS `is_staff()`/`is_admin()` en una única `is_activo()`, reemplaza las policies duales (staff select/insert/update + admin delete) por una sola policy `for all` por tabla, y borra la columna `rol` y el tipo `rol_usuario` de `usuarios`. El campo `tecnico_id` en `ordenes_trabajo` se mantiene como dato operativo/histórico, sin efecto en la autorización.
+
+La API en C# replica este colapso: una única policy `Activo`, sin las policies `Staff`/`Admin` previas (ver [02-Backend-API.md](02-Backend-API.md)).
 
 ## Convenciones de trabajo con la base de datos
 

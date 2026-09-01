@@ -35,9 +35,8 @@ Rutas principales:
 - `/panel-admin/clientes/:clienteId/sitios/:sitioId/unidades/:unidadId` -> detalle de unidad
 - `/panel-admin/inventario` -> listado global de activos
 - `/panel-admin/ordenes` -> módulo de órdenes
-- `/panel-admin/usuarios` -> módulo de usuarios
 
-La zona `/panel-admin` vive protegida por `ProtectedRoute` y, para usuarios admin, `AdminOnlyRoute`.
+La zona `/panel-admin` vive protegida por `ProtectedRoute`. Ya no existe `/panel-admin/usuarios` ni `AdminOnlyRoute` (el sistema es de un solo usuario admin, sin roles ni pantallas admin-only).
 
 ### `src/context/AuthContext.jsx`
 Administra la sesión de Supabase Auth y el perfil interno de staff.
@@ -45,9 +44,8 @@ Administra la sesión de Supabase Auth y el perfil interno de staff.
 Responsabilidades:
 
 - Cargar sesión actual (Supabase Auth, sin cambios)
-- Validar si el usuario autenticado pertenece al staff activo, vía `GET /usuarios/me` en la API (no consulta la tabla `usuarios` directo)
+- Validar si el usuario autenticado está activo, vía `GET /usuarios/me` en la API (no consulta la tabla `usuarios` directo)
 - Exponer `signIn` y `logout`
-- Resolver rol (`admin` o `tecnico`)
 - Controlar estados de carga y error de autenticación
 
 ### `src/lib/supabase.ts`
@@ -70,7 +68,7 @@ Actualmente incluyen tablas y enums usados por la fase 2:
 - `ocupantes`
 - `activos`
 - `usuarios`
-- enums como `tipo_cliente`, `tipo_sitio`, `tipo_activo`, `estado_activo`, `rol_usuario`
+- enums como `tipo_cliente`, `tipo_sitio`, `tipo_activo`, `estado_activo`
 
 ## Módulos funcionales
 
@@ -127,13 +125,6 @@ Módulo reservado para órdenes de trabajo.
 
 Por ahora está como placeholder y no forma parte del flujo CRUD de esta fase.
 
-### `src/features/usuarios`
-Módulo reservado para gestión de usuarios internos.
-
-- `pages/UsuariosPage.jsx`
-
-También está como placeholder en esta etapa.
-
 ## Componentes compartidos
 
 ### `src/components/layout/AuthenticatedLayout.jsx`
@@ -148,9 +139,6 @@ Incluye:
 
 ### `src/components/auth/ProtectedRoute.jsx`
 Bloquea el acceso si no hay sesión válida de staff.
-
-### `src/components/auth/AdminOnlyRoute.jsx`
-Restringe pantallas que solo puede ver un admin.
 
 ## Estilos
 
@@ -211,5 +199,5 @@ El flujo principal que ya está armado es:
 
 - El CRUD de clientes, sitios, unidades, ocupantes y activos ya está operativo y **consume la API en C#** (ver [02-Backend-API.md](02-Backend-API.md)), no Supabase directo.
 - La baja lógica está resuelta en la UI actual (flag de texto en `notas`, salvo activos que usan un campo `estado` real).
-- Las pantallas de órdenes y usuarios todavía están pendientes de implementación funcional (quedan para una próxima fase).
+- La pantalla de órdenes todavía está pendiente de implementación funcional (queda para una próxima fase). No hay pantalla de usuarios: se eliminó al simplificar el sistema a un solo usuario admin, sin roles.
 - Pendiente antes de operar con datos reales: tests automatizados (unit/integration de API y frontend, e2e con Playwright) y una revisión de seguridad — ver "Próximos pasos" en [02-Backend-API.md](02-Backend-API.md).

@@ -395,8 +395,8 @@
           <rect x="400" y="170" width="220" height="150" rx="8" class="box" stroke-width="1.5"/>
           <text x="510" y="197" text-anchor="middle" font-size="13" font-weight="600">API .NET (Stc.Api)</text>
           <text x="510" y="215" text-anchor="middle" font-size="11" class="muted">valida JWT vía JWKS</text>
-          <text x="510" y="231" text-anchor="middle" font-size="11" class="muted">enriquece claims (rol/activo)</text>
-          <text x="510" y="247" text-anchor="middle" font-size="11" class="muted">policies Staff / Admin</text>
+          <text x="510" y="231" text-anchor="middle" font-size="11" class="muted">enriquece claims (activo)</text>
+          <text x="510" y="247" text-anchor="middle" font-size="11" class="muted">policy única Activo</text>
           <text x="510" y="263" text-anchor="middle" font-size="11" class="muted">EF Core + Npgsql</text>
           <text x="510" y="285" text-anchor="middle" font-size="10.5" class="flow-fill" font-family="IBM Plex Mono, monospace">en producción: solo local (localhost:5004)</text>
 
@@ -405,7 +405,7 @@
           <text x="785" y="178" text-anchor="middle" font-size="13" font-weight="600">Postgres</text>
           <text x="785" y="194" text-anchor="middle" font-size="11" class="muted">(alojado en Supabase)</text>
           <line x1="710" y1="206" x2="860" y2="206" stroke="var(--border)"/>
-          <text x="785" y="224" text-anchor="middle" font-size="11" class="muted">RLS: staff CRUD, admin delete</text>
+          <text x="785" y="224" text-anchor="middle" font-size="11" class="muted">RLS: un solo usuario activo</text>
           <text x="785" y="240" text-anchor="middle" font-size="11" class="muted">clientes · sitios · órdenes...</text>
           <text x="785" y="260" text-anchor="middle" font-size="10.5" class="pending-fill" font-family="IBM Plex Mono, monospace">defensa en profundidad</text>
           <text x="785" y="300" text-anchor="middle" font-size="11" class="muted">pooler :5432 (modo sesión)</text>
@@ -473,7 +473,7 @@
           <li>Postgres (alojado en Supabase)</li>
           <li>Supabase Auth (login, JWT Signing Keys)</li>
           <li>Migraciones versionadas con Supabase CLI</li>
-          <li>RLS por rol (staff / admin)</li>
+          <li>RLS: un solo usuario activo, sin roles</li>
         </ul>
       </div>
       <div class="card">
@@ -497,7 +497,7 @@
     </div>
     <figure>
       <div class="scroller">
-        <svg viewBox="0 0 640 610" role="img" aria-label="Secuencia: login en Supabase Auth, emisión de JWT firmado con JWT Signing Keys, envío del token a la API, validación de firma vía JWKS cacheado, middleware que agrega claims de rol y estado activo desde la tabla usuarios, evaluación de policy Staff o Admin (más el chequeo manual de técnico asignado en órdenes), y ejecución de la query.">
+        <svg viewBox="0 0 640 610" role="img" aria-label="Secuencia: login en Supabase Auth, emisión de JWT firmado con JWT Signing Keys, envío del token a la API, validación de firma vía JWKS cacheado, middleware que agrega el claim de estado activo desde la tabla usuarios, evaluación de la policy única Activo, y ejecución de la query.">
           <defs>
             <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" class="security-fill" />
@@ -541,14 +541,14 @@
           <text x="60" y="375" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace">5</text>
           <rect x="100" y="346" width="500" height="52" rx="8" class="box"/>
           <text x="118" y="366" font-size="12.5" font-weight="500">CurrentUserEnrichmentMiddleware</text>
-          <text x="118" y="382" font-size="11" class="muted">busca <tspan font-family="IBM Plex Mono, monospace">usuarios</tspan> por auth_id, agrega claims rol / activo / usuario_id</text>
+          <text x="118" y="382" font-size="11" class="muted">busca <tspan font-family="IBM Plex Mono, monospace">usuarios</tspan> por auth_id, agrega claims activo / usuario_id</text>
 
           <!-- 6 (security boundary) -->
           <circle cx="60" cy="454" r="16" class="box" stroke="var(--security)" stroke-width="2"/>
           <text x="60" y="459" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Mono, monospace" class="security-fill">6</text>
           <rect x="100" y="426" width="500" height="56" rx="8" class="box" stroke="var(--security)" stroke-width="1.5"/>
-          <text x="118" y="446" font-size="12.5" font-weight="500">Policy Staff / Admin</text>
-          <text x="118" y="462" font-size="11" class="muted">+ chequeo manual en <tspan font-family="IBM Plex Mono, monospace">/ordenes</tspan>: admin o técnico asignado</text>
+          <text x="118" y="446" font-size="12.5" font-weight="500">Policy única Activo</text>
+          <text x="118" y="462" font-size="11" class="muted">un solo usuario admin, sin distinción de rol ni ownership</text>
           <text x="118" y="476" font-size="11" class="muted">si falla: 401 / 403 — no llega a tocar datos</text>
 
           <!-- 7 -->
@@ -559,9 +559,9 @@
           <text x="118" y="550" font-size="11" class="muted">EF Core → Npgsql → Postgres (pooler, modo sesión)</text>
         </svg>
       </div>
-      <figcaption>Los dos pasos marcados en rojo son la frontera de seguridad real: si la firma no valida o la policy rechaza al usuario, la request nunca llega a ejecutar una query. El paso 6 es también donde vive la única regla especial (técnico asignado en órdenes).</figcaption>
+      <figcaption>Los dos pasos marcados en rojo son la frontera de seguridad real: si la firma no valida o la policy rechaza al usuario, la request nunca llega a ejecutar una query. Ya no hay reglas especiales por rol: el sistema es de un solo usuario admin.</figcaption>
     </figure>
-    <div class="note"><strong>RLS como defensa en profundidad:</strong> desde que el frontend migró a este camino, las policies RLS de Postgres (mismo esquema staff/admin) ya no son la autorización primaria — siguen activas por si algo llega a hablar directo con la anon key, pero el panel admin ya no depende de ellas.</div>
+    <div class="note"><strong>RLS como defensa en profundidad:</strong> desde que el frontend migró a este camino, las policies RLS de Postgres (colapsadas a un solo usuario activo, sin roles) ya no son la autorización primaria — siguen activas por si algo llega a hablar directo con la anon key, pero el panel admin ya no depende de ellas.</div>
   </section>
 
   <!-- ============ ESTRUCTURA API ============ -->
@@ -569,7 +569,7 @@
     <div class="panel-head">
       <span class="eyebrow">04 — estructura de la api</span>
       <h2>Tres proyectos, una dirección de dependencia</h2>
-      <p>Domain no depende de nada. Infrastructure depende de Domain. Api depende de los dos. Sin capa de "casos de uso" — con 2-3 usuarios, la lógica vive directo en los endpoints.</p>
+      <p>Domain no depende de nada. Infrastructure depende de Domain. Api depende de los dos. Sin capa de "casos de uso" — con un solo usuario, la lógica vive directo en los endpoints.</p>
     </div>
     <figure>
       <div class="scroller">
@@ -622,15 +622,13 @@
           <tr><th>Recurso</th><th>Métodos</th><th>Autorización</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>/clientes</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Staff</span> <span class="pill admin">Admin (delete)</span></td></tr>
-          <tr><td><code>/sitios /unidades /ocupantes /activos /insumos</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Staff</span> <span class="pill admin">Admin (delete)</span></td></tr>
-          <tr><td><code>/ordenes</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Staff</span> · PUT: admin o técnico asignado</td></tr>
-          <tr><td><code>/movimientos-stock</code></td><td>GET · POST</td><td><span class="pill staff">Staff</span></td></tr>
+          <tr><td><code>/clientes</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Activo</span></td></tr>
+          <tr><td><code>/sitios /unidades /ocupantes /activos /insumos</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Activo</span></td></tr>
+          <tr><td><code>/ordenes</code></td><td>GET · POST · PUT · DELETE</td><td><span class="pill staff">Activo</span></td></tr>
+          <tr><td><code>/movimientos-stock</code></td><td>GET · POST</td><td><span class="pill staff">Activo</span></td></tr>
           <tr><td><code>/leads</code></td><td>POST</td><td><span class="pill anon">Público</span></td></tr>
-          <tr><td><code>/leads</code></td><td>GET · PUT · DELETE</td><td><span class="pill staff">Staff</span> <span class="pill admin">Admin (delete)</span></td></tr>
-          <tr><td><code>/usuarios/me</code></td><td>GET</td><td><span class="pill staff">Staff</span> · perfil propio del JWT actual</td></tr>
-          <tr><td><code>/usuarios</code></td><td>GET</td><td><span class="pill staff">Staff</span></td></tr>
-          <tr><td><code>/usuarios</code></td><td>POST · PUT · DELETE</td><td><span class="pill admin">Admin</span></td></tr>
+          <tr><td><code>/leads</code></td><td>GET · PUT · DELETE</td><td><span class="pill staff">Activo</span></td></tr>
+          <tr><td><code>/usuarios/me</code></td><td>GET</td><td><span class="pill staff">Activo</span> · único endpoint de <code>/usuarios</code>, perfil propio del JWT actual</td></tr>
         </tbody>
       </table>
     </div>

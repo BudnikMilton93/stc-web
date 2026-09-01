@@ -4,7 +4,7 @@ Este documento describe la API propia en C# que vive en [`api/`](../../api), que
 
 ## Por qué existe
 
-El sistema es de uso interno (2-3 usuarios). El dueño quería mantener práctica en C#/.NET, y la lógica de autorización que resolvía RLS es simple (dos roles, un caso de ownership) — bajo riesgo de reimplementar en una API propia. Ver decisión completa en el historial de la conversación que originó este backend (no hay ADR escrito todavía).
+El sistema es de uso interno, hoy operado por un único usuario admin. El dueño quería mantener práctica en C#/.NET, y la lógica de autorización que resolvía RLS es simple — bajo riesgo de reimplementar en una API propia. Ver decisión completa en el historial de la conversación que originó este backend (no hay ADR escrito todavía).
 
 ## Qué reemplaza y qué no
 
@@ -29,22 +29,21 @@ api/
     └── Stc.Infrastructure/  # DbContext (EF Core), configuraciones Fluent API, mapeo de enums nativos de Postgres
 ```
 
-Se evitó una cuarta capa tipo `Stc.Application` (casos de uso) a propósito: con 2-3 usuarios y lógica simple, la lógica de negocio vive directo en los endpoints. Se puede extraer a una capa de servicios si la complejidad crece.
+Se evitó una cuarta capa tipo `Stc.Application` (casos de uso) a propósito: con un solo usuario y lógica simple, la lógica de negocio vive directo en los endpoints. Se puede extraer a una capa de servicios si la complejidad crece.
 
 ## Autenticación y autorización
 
-Replica el esquema que tenía la RLS original (`supabase/migrations/20260724195456_rls_policies.sql`):
+El sistema es de un solo usuario admin, sin roles. Esto colapsó el esquema staff/admin que tenía la RLS original (`supabase/migrations/20260724195456_rls_policies.sql`) en una única condición, ver la migración de ajuste `supabase/migrations/20260901000000_usuario_unico_sin_roles.sql`:
 
-- **Staff** (cualquier usuario activo en la tabla `usuarios`): puede leer/crear/actualizar la mayoría de los recursos.
-- **Admin**: además puede borrar.
-- Excepción puntual: en `/ordenes`, el update lo puede hacer el admin o el técnico asignado a esa orden (chequeo manual en el handler, no una policy genérica).
+- Policy única **Activo** (`RequireClaim("activo","true")`, cualquier usuario activo en la tabla `usuarios`): puede leer/crear/actualizar/borrar todos los recursos. No hay distinción de rol ni de delete-only-admin.
+- `PUT /ordenes` ya no tiene chequeo manual de ownership — el campo `TecnicoId` en `OrdenTrabajo` se mantiene como dato operativo/histórico, sin efecto en la autorización.
 - Excepción puntual: `POST /leads` es público (`AllowAnonymous`) — es el formulario de contacto del sitio, sin sesión.
 
 Mecanismo:
 
 1. El frontend sigue logueando contra **Supabase Auth** (sin cambios) y obtiene un JWT.
 2. La API valida ese JWT contra las **JWT Signing Keys** del proyecto (claves públicas rotables — Supabase migró de un secreto HS256 fijo a este esquema). Se descargan del endpoint JWKS del proyecto y se cachean con renovación automática (`Auth/JwksRetriever.cs` + `ConfigurationManager<JsonWebKeySet>` en `Program.cs`). No hay ningún secreto de JWT que gestionar.
-3. `Auth/CurrentUserEnrichmentMiddleware.cs` toma el `sub` (auth id) del token, busca el registro correspondiente en `usuarios`, y agrega los claims `rol`/`activo`/`usuario_id` que consumen las policies (`Staff`, `Admin`) y los endpoints que necesitan el id del usuario actual (ej. el chequeo de técnico asignado en órdenes).
+3. `Auth/CurrentUserEnrichmentMiddleware.cs` toma el `sub` (auth id) del token, busca el registro correspondiente en `usuarios`, y agrega los claims `activo`/`usuario_id` que consume la policy `Activo` y los endpoints que necesitan el id del usuario actual.
 
 ## Acceso a datos
 
@@ -64,9 +63,9 @@ Ver [`api/README.md`](../../api/README.md) para el comando exacto de `dotnet use
 
 ## Endpoints
 
-Todos los recursos del schema están cubiertos (`GET`/`POST`/`PUT`: Staff, `DELETE`: Admin, salvo las excepciones ya mencionadas): `/clientes`, `/sitios`, `/unidades`, `/ocupantes`, `/activos`, `/ordenes`, `/insumos`, `/movimientos-stock`, `/leads`, `/usuarios`.
+Todos los recursos del schema están cubiertos (policy **Activo** en todos los métodos, salvo la excepción de `/leads` ya mencionada): `/clientes`, `/sitios`, `/unidades`, `/ocupantes`, `/activos`, `/ordenes`, `/insumos`, `/movimientos-stock`, `/leads`.
 
-`GET /usuarios/me` devuelve el usuario correspondiente al JWT actual (usa el claim `usuario_id` que ya agrega `CurrentUserEnrichmentMiddleware`, sin repetir la consulta por `auth_id`). Lo consume `AuthContext.jsx` en el frontend para resolver el perfil de staff después del login, en lugar de consultar la tabla `usuarios` directo contra Supabase.
+`GET /usuarios/me` es el único endpoint que queda de `UsuariosEndpoints.cs` (se eliminó el resto: listado, alta, edición, borrado, sin sentido con un solo usuario). Devuelve el usuario correspondiente al JWT actual (usa el claim `usuario_id` que ya agrega `CurrentUserEnrichmentMiddleware`, sin repetir la consulta por `auth_id`) como `UsuarioResponse(Id, Nombre, Email, Activo)`, sin campo de rol. Lo consume `AuthContext.jsx` en el frontend para resolver el perfil después del login, en lugar de consultar la tabla `usuarios` directo contra Supabase.
 
 `GET /activos` acepta filtros opcionales combinables `clienteId`, `sitioId`, `unidadId` (no hay filtro server-side por `tipo` ni `numeroSerie` — el frontend los resuelve en memoria). `GET /sitios` y `GET /unidades` aceptan `clienteId`/`sitioId` respectivamente. `GET /ocupantes` acepta `unidadId`.
 
@@ -84,6 +83,6 @@ Al conectar el frontend real contra la API se encontraron y corrigieron varios p
 ## Próximos pasos
 
 1. Evaluar si vale la pena endurecer más las policies RLS actuales (hoy protegen el escenario "frontend habla directo con la anon key"; con la migración completa, esa capa pasa a ser defensa en profundidad, no la autorización primaria).
-2. Endpoints para `orden_items` y `adjuntos`, cuando se implementen las pantallas de Órdenes y Usuarios (hoy son placeholders).
+2. Endpoints para `orden_items` y `adjuntos`, cuando se implemente la pantalla de Órdenes (hoy es un placeholder). No hay pantalla de Usuarios pendiente: `frontend/src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin.
 3. Reforzar la solución con tests automatizados (unit/integration del lado de la API, unit del lado del frontend, y e2e con Playwright para los flujos críticos) y una revisión de seguridad, antes de operar con datos reales de producción.
 4. Definir dónde y cómo se hospeda la API en un ambiente de producción — hoy solo corre en local (`localhost:5004`).

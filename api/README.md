@@ -46,28 +46,28 @@ dotnet run --project src/Stc.Api
 
 ## Autorizacion
 
-Replica el mismo esquema que tenian las policies RLS de Supabase
-(ver `supabase/migrations/20260724195456_rls_policies.sql`):
+El sistema es de un solo usuario admin, sin roles. Esto colapso el
+esquema staff/admin que tenian las policies RLS originales de Supabase
+en una unica condicion (ver `supabase/migrations/20260901000000_usuario_unico_sin_roles.sql`):
 
-- **Staff** (cualquier usuario activo en la tabla `usuarios`): puede
-  leer/crear/actualizar la mayoria de los recursos.
-- **Admin**: ademas puede borrar.
-- Excepcion: en `ordenes_trabajo`, el update lo puede hacer el admin
-  o el tecnico asignado a esa orden.
+- Policy unica **Activo** (`RequireClaim("activo","true")`, cualquier
+  usuario activo en la tabla `usuarios`): puede leer/crear/actualizar/
+  borrar todos los recursos. No hay distincion de rol ni delete-only-admin.
+- `PUT /ordenes/{id}` ya no tiene chequeo manual de ownership — el campo
+  `TecnicoId` en `OrdenTrabajo` se mantiene como dato operativo/historico,
+  sin efecto en la autorizacion.
 
 El middleware `CurrentUserEnrichmentMiddleware` toma el JWT de Supabase
 (que ya usa el frontend para el login), busca el usuario correspondiente
-en la tabla `usuarios` y agrega los claims `rol`/`activo`/`usuario_id`
-que consumen las policies y los endpoints.
+en la tabla `usuarios` y agrega los claims `activo`/`usuario_id`
+que consume la policy `Activo` y los endpoints.
 
 ## Endpoints
 
 Todos los recursos del schema estan cubiertos, siguiendo el patron de
-`Endpoints/ClientesEndpoints.cs` (GET/POST/PUT: Staff, DELETE: Admin),
-con dos excepciones puntuales:
+`Endpoints/ClientesEndpoints.cs` (`RequireAuthorization("Activo")` a
+nivel de grupo, sin distincion por metodo), con una excepcion puntual:
 
-- `PUT /ordenes/{id}` — el admin o el tecnico asignado a esa orden
-  (chequeo manual en el handler, no una policy generica).
 - `POST /leads` — publico (`AllowAnonymous`), sin sesion.
 
 | Recurso | Archivo |
