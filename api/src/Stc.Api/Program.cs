@@ -34,10 +34,15 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 // ya no un secreto simetrico fijo). Se descargan y cachean desde el JWKS
 // del proyecto; ConfigurationManager<T> maneja la actualizacion automatica.
 var jwksUri = jwt.JwksUri ?? $"{jwt.Issuer.TrimEnd('/')}/.well-known/jwks.json";
+// RequireHttps queda relajado solo en Development: el Supabase local que
+// levanta `supabase start` (usado en dev y en los E2E de Playwright, ver
+// frontend/playwright.config.ts) sirve su JWKS por HTTP en 127.0.0.1, a
+// diferencia del proyecto remoto (siempre HTTPS). En cualquier otro
+// entorno se mantiene la exigencia de HTTPS.
 var jwksConfigManager = new ConfigurationManager<JsonWebKeySet>(
     jwksUri,
     new JwksRetriever(),
-    new HttpDocumentRetriever { RequireHttps = true });
+    new HttpDocumentRetriever { RequireHttps = !builder.Environment.IsDevelopment() });
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
