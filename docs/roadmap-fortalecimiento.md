@@ -12,7 +12,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 2 | CI básico (build + lint en cada push/PR) | Hecho | `.github/workflows/ci.yml` — build+lint del frontend, build+tests de la API |
 | 3 | Revisión de seguridad | Hecho, con 1 ítem diferido | Rate limiting + validación en `/leads`, `npm audit fix`, comentario RLS corregido. CORS de producción queda pendiente hasta que exista un dominio real de deploy |
 | 4 | Tests de frontend (Vitest + Testing Library) | Hecho | 25 tests en `frontend/src/**/*.test.{js,jsx}` |
-| 5 | E2E de flujos críticos (Playwright) | Pendiente | Login → cliente → sitio → unidad → activo |
+| 5 | E2E de flujos críticos (Playwright) | Hecho | 2 specs en `frontend/e2e/`, corrida manual (`npm run test:e2e`), fuera del CI a propósito |
 | 6 | Endpoints `orden_items` y `adjuntos` | Pendiente, sin urgencia | Sub-recursos; esperar a que el frontend los necesite (ordenes/usuarios siguen siendo placeholders) |
 
 ## Detalle
@@ -46,8 +46,14 @@ Vitest + React Testing Library, agregado a `.github/workflows/ci.yml` (job `fron
 
 `AuthContext.jsx` no se testeó de forma aislada — se verifica indirectamente vía `ProtectedRoute`/`AdminLoginPage` mockeando `useAuth`, igual que `CurrentUserEnrichmentMiddleware` se verificó vía la policy real en el punto 1.
 
-### 5. E2E de flujos críticos
-Sin cobertura. Acotado a los flujos críticos de instalación (login → cliente → sitio → unidad → activo) con Playwright, no como reemplazo de la cobertura unitaria ya lograda en los puntos 1 y 4.
+### 5. E2E de flujos críticos — Hecho
+Playwright, `frontend/e2e/`. El flujo real es login → cliente → sitio → unidad → **ocupante** → activo (no se puede dar de alta un activo sin al menos un ocupante en la unidad, restricción de la UI) — la redacción corta del roadmap omitía ese paso intermedio, pero el spec lo cubre.
+
+- `flujo-critico.spec.ts` — crea toda la jerarquía de punta a punta contra el sistema real (Supabase local + API real + frontend real, sin mocks) y verifica que el activo queda visible con el ocupante asignado.
+- `login.spec.ts` — credenciales inválidas muestran el error real de Supabase Auth sin navegar al panel.
+- `e2e/global-setup.ts` crea un usuario admin real (Supabase Auth + fila en `usuarios`) antes de que `playwright.config.ts` levante la API y el frontend reales vía `webServer`.
+- Corrida manual: `npm run test:e2e` desde `frontend/` (requiere `supabase start` corriendo). **Deliberadamente fuera de `.github/workflows/ci.yml`**: levantar Supabase + API + frontend + Chromium es mucho más lento y frágil (3 procesos coordinados, timing de arranque) que los jobs actuales de segundos — se documenta como corrida manual antes de cambios grandes o de un deploy, no como gate de cada PR.
+- Efecto lateral encontrado al correr contra el sistema real (no simulable con mocks): `api/src/Stc.Api/Program.cs` exigía HTTPS para el JWKS siempre (`RequireHttps = true`), lo cual rompe contra el Supabase local (JWKS por HTTP). Se relajó solo en `Development`, sin afectar producción ni el entorno `Testing` de `Stc.Api.Tests` (confirmado: sus 20 tests siguen en verde).
 
 ### 6. Endpoints faltantes
 `orden_items` y `adjuntos` son las únicas tablas del schema sin endpoint propio. No es urgente: `src/features/ordenes` del frontend sigue siendo un placeholder sin CRUD funcional, así que no hay consumidor todavía (`src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin, sin roles).
