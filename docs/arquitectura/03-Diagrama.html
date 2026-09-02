@@ -646,12 +646,12 @@
   <section class="panel" id="tests">
     <div class="panel-head">
       <span class="eyebrow">05 — tests</span>
-      <h2>Frontend y API cubiertos y en CI; falta RLS y e2e</h2>
-      <p>La API tiene 20 tests de integración contra Postgres real; el frontend suma 25 tests unitarios/de componente. Ambos corren en <code>.github/workflows/ci.yml</code> en cada push/PR. Solo quedan pendientes las policies RLS y los flujos e2e.</p>
+      <h2>Frontend, API y e2e cubiertos; falta RLS</h2>
+      <p>La API tiene 20 tests de integración contra Postgres real; el frontend suma 25 tests unitarios/de componente; y un flujo crítico de punta a punta corre con Playwright contra el sistema real. Los dos primeros corren en <code>.github/workflows/ci.yml</code> en cada push/PR — el e2e es manual, a propósito. Solo quedan pendientes las policies RLS.</p>
     </div>
     <figure>
       <div class="scroller">
-        <svg viewBox="0 0 860 260" role="img" aria-label="Tres cajas: Frontend con 25 tests Vitest y React Testing Library corriendo en CI, API con 20 tests xUnit contra Postgres real via Testcontainers y corriendo en CI, Postgres/RLS todavia sin tests, mas una cuarta caja para tests end-to-end con Playwright cubriendo frontend y API juntos.">
+        <svg viewBox="0 0 860 260" role="img" aria-label="Tres cajas: Frontend con 25 tests Vitest y React Testing Library corriendo en CI, API con 20 tests xUnit contra Postgres real via Testcontainers y corriendo en CI, Postgres/RLS todavia sin tests, mas una cuarta caja para 2 tests end-to-end con Playwright contra el sistema real, corrida manual fuera del CI.">
           <rect x="20" y="20" width="250" height="120" rx="8" class="box" stroke="var(--flow)" stroke-width="1.5"/>
           <text x="145" y="50" text-anchor="middle" font-size="13" font-weight="600">Frontend</text>
           <text x="145" y="70" text-anchor="middle" font-size="11" class="flow-fill" font-family="IBM Plex Mono, monospace">25 tests · en CI</text>
@@ -670,12 +670,13 @@
           <text x="715" y="96" text-anchor="middle" font-size="11" class="muted">sugerido: pgTAP sobre</text>
           <text x="715" y="112" text-anchor="middle" font-size="11" class="muted">las policies RLS</text>
 
-          <rect x="20" y="180" width="820" height="60" rx="8" class="box-alt" stroke-width="1.5"/>
-          <text x="430" y="205" text-anchor="middle" font-size="13" font-weight="600">E2E — Playwright</text>
-          <text x="430" y="223" text-anchor="middle" font-size="11" class="muted">flujos críticos de punta a punta: login → cliente → sitio → unidad → activo, contra frontend + API reales</text>
+          <rect x="20" y="180" width="820" height="60" rx="8" class="box" stroke="var(--flow)" stroke-width="1.5"/>
+          <text x="430" y="203" text-anchor="middle" font-size="13" font-weight="600">E2E — Playwright</text>
+          <text x="430" y="221" text-anchor="middle" font-size="11" class="flow-fill" font-family="IBM Plex Mono, monospace">2 tests · manual (fuera del CI)</text>
+          <text x="430" y="235" text-anchor="middle" font-size="10.5" class="muted">login → cliente → sitio → unidad → ocupante → activo, contra Supabase local + API + frontend reales — <tspan font-family="IBM Plex Mono, monospace">npm run test:e2e</tspan></text>
         </svg>
       </div>
-      <figcaption>Frontend y API (teal, sólido) ya tienen cobertura real y corren en <code>.github/workflows/ci.yml</code> en cada push/PR. RLS (ámbar, punteado) sigue siendo deuda pendiente, y Playwright (abajo) queda acotado a los flujos críticos, no como reemplazo de la cobertura unitaria ya lograda arriba.</figcaption>
+      <figcaption>Frontend, API (teal, sólido, en CI) y E2E (teal, sólido, manual) ya tienen cobertura real. RLS (ámbar, punteado) sigue siendo la única deuda pendiente de esta sección. El e2e queda fuera de <code>.github/workflows/ci.yml</code> a propósito: levantar Supabase + API + frontend + Chromium es mucho más lento y frágil que los jobs actuales — se corre a mano antes de cambios grandes o de un deploy.</figcaption>
     </figure>
   </section>
 
