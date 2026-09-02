@@ -2,6 +2,8 @@
 
 Este documento describe la API propia en C# que vive en [`api/`](../../api), que reemplazó el acceso directo del frontend a Supabase (`supabase-js` + RLS) para datos de negocio. Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume esta API hoy, ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html).
 
+- **Levantar la API**: dotnet run --project api/src/Stc.Api
+
 ## Por qué existe
 
 El sistema es de uso interno, hoy operado por un único usuario admin. El dueño quería mantener práctica en C#/.NET, y la lógica de autorización que resolvía RLS es simple — bajo riesgo de reimplementar en una API propia. Ver decisión completa en el historial de la conversación que originó este backend (no hay ADR escrito todavía).

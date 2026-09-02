@@ -94,9 +94,10 @@ cuando el frontend los necesite.
   todo dato de negocio (`src/lib/apiClient.js`); `@supabase/supabase-js`
   queda solo para Supabase Auth (login/sesion).
 - Tests de la API ya existen: `src/Stc.Api.Tests` (xUnit +
-  `WebApplicationFactory` + Testcontainers, Postgres real). CI
-  (`.github/workflows/ci.yml`) los corre en cada push/PR. El frontend
-  todavia no tiene proyecto de tests.
+  `WebApplicationFactory` + Testcontainers, Postgres real). El frontend
+  tambien tiene tests: `frontend/src/**/*.test.{js,jsx}` (Vitest +
+  React Testing Library). CI (`.github/workflows/ci.yml`) corre ambos
+  en cada push/PR.
 - `POST /leads` (unica superficie publica sin sesion) ya tiene rate
   limiting (5 req/min por IP, `AddRateLimiter`) y validacion de input
   (`ValidarCrearLead` en `Endpoints/LeadsEndpoints.cs`).
