@@ -114,10 +114,13 @@ alter table usuarios drop column if exists rol;
 drop type if exists rol_usuario;
 
 -- ------------------------------------------------------------
--- NOTA: las Edge Functions que usan la service_role key
--- bypassean RLS por completo (es el comportamiento esperado
--- para tu backend de confianza). Estas politicas protegen el
--- escenario donde el frontend consulta Supabase directo con
--- la clave anon/publica. No hay distincion de roles: un solo
--- usuario activo gestiona todo.
+-- NOTA: el backend en C# no usa Edge Functions ni la service_role
+-- key de la Data API — se conecta directo con una connection
+-- string de Postgres (rol "postgres" del connection pooler en
+-- modo sesion, ver api/src/Stc.Infrastructure/ServiceCollectionExtensions.cs),
+-- que por default en Supabase tiene BYPASSRLS. Estas policies son
+-- defensa en profundidad solo para el escenario legado de que el
+-- frontend vuelva a consultar Supabase directo con la clave
+-- anon/publica (hoy no lo hace, ver CLAUDE.md). No hay distincion
+-- de roles: un solo usuario activo gestiona todo.
 -- ------------------------------------------------------------
