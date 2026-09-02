@@ -11,7 +11,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 1 | Tests de la API (xUnit + `WebApplicationFactory`) | Hecho | `464e294` — 17 tests en `api/src/Stc.Api.Tests`, Postgres real vía Testcontainers |
 | 2 | CI básico (build + lint en cada push/PR) | Hecho | `.github/workflows/ci.yml` — build+lint del frontend, build+tests de la API |
 | 3 | Revisión de seguridad | Hecho, con 1 ítem diferido | Rate limiting + validación en `/leads`, `npm audit fix`, comentario RLS corregido. CORS de producción queda pendiente hasta que exista un dominio real de deploy |
-| 4 | Tests de frontend (Vitest + Testing Library) | Pendiente | Después de la API |
+| 4 | Tests de frontend (Vitest + Testing Library) | Hecho | 25 tests en `frontend/src/**/*.test.{js,jsx}` |
 | 5 | E2E de flujos críticos (Playwright) | Pendiente | Login → cliente → sitio → unidad → activo |
 | 6 | Endpoints `orden_items` y `adjuntos` | Pendiente, sin urgencia | Sub-recursos; esperar a que el frontend los necesite (ordenes/usuarios siguen siendo placeholders) |
 
@@ -22,7 +22,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 
 ### 2. CI/CD — Hecho
 `.github/workflows/ci.yml` (GitHub Actions), dos jobs independientes en paralelo:
-- **frontend**: `npm ci` → `npm run lint` (oxlint) → `npm run build`.
+- **frontend**: `npm ci` → `npm run lint` (oxlint) → `npm run test` (Vitest) → `npm run build`.
 - **api**: `dotnet restore` → `dotnet build --configuration Release` → `dotnet test --configuration Release` (corre los 17 tests de `Stc.Api.Tests` contra un Postgres real vía Testcontainers; `ubuntu-latest` ya trae Docker Engine corriendo, no requiere configuración extra).
 
 Deliberadamente sin `scan-dependencies`/`scan-for-secrets` todavía: `npm audit` ya reporta 3 vulnerabilidades altas preexistentes (`nanoid`, `react-router`) que agregarían un gate roto desde el día uno. Eso queda para el punto 3 (revisión de seguridad), donde corresponde decidir si se resuelven las vulnerabilidades antes de bloquear el pipeline con ese gate.
@@ -38,8 +38,16 @@ Revisión completa (agente `security`): sin hallazgos críticos ni secretos expu
 Diferido:
 - **CORS de producción sin definir**: `api/src/Stc.Api/Program.cs` solo habilita el origen de Vite en desarrollo (`FrontendDevCorsPolicy`). No es una vulnerabilidad activa hoy (sin CORS explícito, ASP.NET Core deniega cross-origin por default) — el riesgo real sería agregar `AllowAnyOrigin()` apurados en el momento del deploy. Queda bloqueante recién cuando exista un dominio real de producción, no antes.
 
-### 4-5. Tests de frontend y E2E
-Sin cobertura. Frontend después de la API (menor blast radius si falla). E2E acotado a los flujos críticos de instalación, no como reemplazo de cobertura unitaria.
+### 4. Tests de frontend — Hecho
+Vitest + React Testing Library, agregado a `.github/workflows/ci.yml` (job `frontend`, step `npm run test`). 25 tests:
+- `src/lib/apiClient.test.js` — lógica pura mockeando `fetch`/`supabase.auth.getSession`: header `Authorization` presente/ausente, parseo de body (JSON/texto/vacío), `ApiError` con status/body/message correctos, serialización de body en `post/put/patch`.
+- `src/components/auth/ProtectedRoute.test.jsx` y `src/features/auth/pages/AdminLoginPage.test.jsx` — ruta crítica de auth, mockeando `useAuth`: loading, redirección si no autorizado/ya autorizado, envío del form, error de `signIn` en pantalla.
+- `src/features/clientes/pages/ClientesPage.test.jsx` — un CRUD representativo (carga, filtro en memoria, alta con payload correcto, validación de nombre obligatorio, error de la API en el form), sin repetir el mismo patrón en `SitioDetailPage`/`UnidadDetailPage`/`InventarioPage`/`ClienteDetailPage` (mismo criterio que se usó del lado de la API: cobertura representativa, no exhaustiva).
+
+`AuthContext.jsx` no se testeó de forma aislada — se verifica indirectamente vía `ProtectedRoute`/`AdminLoginPage` mockeando `useAuth`, igual que `CurrentUserEnrichmentMiddleware` se verificó vía la policy real en el punto 1.
+
+### 5. E2E de flujos críticos
+Sin cobertura. Acotado a los flujos críticos de instalación (login → cliente → sitio → unidad → activo) con Playwright, no como reemplazo de la cobertura unitaria ya lograda en los puntos 1 y 4.
 
 ### 6. Endpoints faltantes
 `orden_items` y `adjuntos` son las únicas tablas del schema sin endpoint propio. No es urgente: `src/features/ordenes` del frontend sigue siendo un placeholder sin CRUD funcional, así que no hay consumidor todavía (`src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin, sin roles).
