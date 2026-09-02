@@ -366,7 +366,7 @@
     </div>
     <figure>
       <div class="scroller">
-        <svg viewBox="0 0 920 460" role="img" aria-label="El navegador autentica contra Supabase Auth y luego llama a la API en C# con el JWT para leer y escribir datos de negocio. La API valida el JWT via JWKS y habla con Postgres via EF Core. El camino directo del navegador a Postgres con la anon key ya no recibe tráfico del panel admin — queda como legado, protegido igual por RLS.">
+        <svg viewBox="0 0 940 520" role="img" aria-label="El navegador autentica contra Supabase Auth arriba (login y JWT viajan por su propio carril). Para datos, el navegador llama a la API en C# (carril del medio), que valida el JWT via JWKS (carril vertical propio) y habla con Postgres via EF Core. El camino directo y legado del navegador a Postgres con la anon key va por un carril bien separado, abajo de todo, para no confundirse con el camino activo — ya no recibe tráfico del panel admin.">
           <defs>
             <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" class="flow-fill" />
@@ -380,63 +380,68 @@
           </defs>
 
           <!-- Browser -->
-          <rect x="40" y="170" width="190" height="100" rx="8" class="box" stroke-width="1.5"/>
-          <text x="135" y="205" text-anchor="middle" font-size="13" font-weight="600">React + Vite</text>
-          <text x="135" y="224" text-anchor="middle" font-size="11" class="muted">panel-admin (staff)</text>
-          <text x="135" y="242" text-anchor="middle" font-size="11" class="muted">apiClient.js (datos) · supabase-js (sesión)</text>
+          <rect x="40" y="190" width="190" height="180" rx="8" class="box" stroke-width="1.5"/>
+          <text x="135" y="222" text-anchor="middle" font-size="13" font-weight="600">React + Vite</text>
+          <text x="135" y="241" text-anchor="middle" font-size="11" class="muted">panel-admin (staff)</text>
+          <text x="135" y="259" text-anchor="middle" font-size="11" class="muted">apiClient.js (datos)</text>
+          <text x="135" y="275" text-anchor="middle" font-size="11" class="muted">supabase-js (sesión)</text>
 
           <!-- Supabase Auth -->
-          <rect x="400" y="40" width="200" height="82" rx="8" class="box" stroke-width="1.5"/>
-          <text x="500" y="68" text-anchor="middle" font-size="13" font-weight="600">Supabase Auth</text>
-          <text x="500" y="86" text-anchor="middle" font-size="11" class="muted">login staff (email/pass)</text>
-          <text x="500" y="102" text-anchor="middle" font-size="11" class="muted">emite JWT (Signing Keys)</text>
+          <rect x="440" y="40" width="220" height="90" rx="8" class="box" stroke-width="1.5"/>
+          <text x="550" y="68" text-anchor="middle" font-size="13" font-weight="600">Supabase Auth</text>
+          <text x="550" y="86" text-anchor="middle" font-size="11" class="muted">login staff (email/pass)</text>
+          <text x="550" y="102" text-anchor="middle" font-size="11" class="muted">emite JWT (Signing Keys)</text>
 
           <!-- API C# -->
-          <rect x="400" y="170" width="220" height="150" rx="8" class="box" stroke-width="1.5"/>
-          <text x="510" y="197" text-anchor="middle" font-size="13" font-weight="600">API .NET (Stc.Api)</text>
-          <text x="510" y="215" text-anchor="middle" font-size="11" class="muted">valida JWT vía JWKS</text>
-          <text x="510" y="231" text-anchor="middle" font-size="11" class="muted">enriquece claims (activo)</text>
-          <text x="510" y="247" text-anchor="middle" font-size="11" class="muted">policy única Activo</text>
-          <text x="510" y="263" text-anchor="middle" font-size="11" class="muted">EF Core + Npgsql</text>
-          <text x="510" y="285" text-anchor="middle" font-size="10.5" class="flow-fill" font-family="IBM Plex Mono, monospace">en producción: solo local (localhost:5004)</text>
+          <rect x="440" y="190" width="230" height="170" rx="8" class="box" stroke-width="1.5"/>
+          <text x="555" y="217" text-anchor="middle" font-size="13" font-weight="600">API .NET (Stc.Api)</text>
+          <text x="555" y="235" text-anchor="middle" font-size="11" class="muted">valida JWT vía JWKS</text>
+          <text x="555" y="251" text-anchor="middle" font-size="11" class="muted">enriquece claims (activo)</text>
+          <text x="555" y="267" text-anchor="middle" font-size="11" class="muted">policy única Activo</text>
+          <text x="555" y="283" text-anchor="middle" font-size="11" class="muted">EF Core + Npgsql</text>
+          <text x="555" y="305" text-anchor="middle" font-size="10.5" class="flow-fill" font-family="IBM Plex Mono, monospace">en producción: solo local (localhost:5004)</text>
 
           <!-- Postgres -->
-          <rect x="690" y="150" width="190" height="190" rx="8" class="box" stroke-width="1.5"/>
-          <text x="785" y="178" text-anchor="middle" font-size="13" font-weight="600">Postgres</text>
-          <text x="785" y="194" text-anchor="middle" font-size="11" class="muted">(alojado en Supabase)</text>
-          <line x1="710" y1="206" x2="860" y2="206" stroke="var(--border)"/>
-          <text x="785" y="224" text-anchor="middle" font-size="11" class="muted">RLS: un solo usuario activo</text>
-          <text x="785" y="240" text-anchor="middle" font-size="11" class="muted">clientes · sitios · órdenes...</text>
-          <text x="785" y="260" text-anchor="middle" font-size="10.5" class="pending-fill" font-family="IBM Plex Mono, monospace">defensa en profundidad</text>
-          <text x="785" y="300" text-anchor="middle" font-size="11" class="muted">pooler :5432 (modo sesión)</text>
-          <text x="785" y="316" text-anchor="middle" font-size="10.5" class="muted">:6543 transacción — evitar</text>
+          <rect x="730" y="170" width="190" height="210" rx="8" class="box" stroke-width="1.5"/>
+          <text x="825" y="198" text-anchor="middle" font-size="13" font-weight="600">Postgres</text>
+          <text x="825" y="214" text-anchor="middle" font-size="11" class="muted">(alojado en Supabase)</text>
+          <line x1="750" y1="226" x2="900" y2="226" stroke="var(--border)"/>
+          <text x="825" y="244" text-anchor="middle" font-size="11" class="muted">RLS: un solo usuario activo</text>
+          <text x="825" y="260" text-anchor="middle" font-size="11" class="muted">clientes · sitios · órdenes...</text>
+          <text x="825" y="280" text-anchor="middle" font-size="10.5" class="pending-fill" font-family="IBM Plex Mono, monospace">defensa en profundidad</text>
+          <text x="825" y="320" text-anchor="middle" font-size="11" class="muted">pooler :5432 (modo sesión)</text>
+          <text x="825" y="336" text-anchor="middle" font-size="10.5" class="muted">:6543 transacción — evitar</text>
 
-          <!-- Browser -> Auth (login) -->
-          <path d="M170,170 C170,90 300,80 400,78" fill="none" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
-          <text x="235" y="85" font-size="10.5" class="flow-fill">login</text>
+          <!-- Carril 1 (arriba): sesion, Browser <-> Auth. Las dos flechas
+               salen/entran a 30px de distancia en cada caja para que se vean
+               como un ida-y-vuelta, no como una cruz. -->
+          <path d="M230,225 C330,150 380,95 440,72" fill="none" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
+          <text x="255" y="160" font-size="10.5" class="flow-fill">① login</text>
 
-          <!-- Auth -> Browser (jwt) -->
-          <path d="M400,100 C300,105 200,140 195,170" fill="none" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
-          <text x="255" y="140" font-size="10.5" class="flow-fill">JWT firmado</text>
+          <path d="M440,102 C380,140 300,195 230,255" fill="none" class="flow-line" stroke-width="2" marker-end="url(#a1)"/>
+          <text x="290" y="230" font-size="10.5" class="flow-fill">② JWT firmado</text>
 
-          <!-- Browser -> Postgres (direct, legacy) -->
-          <path d="M230,240 C420,300 560,330 690,290" fill="none" class="pending-line" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a1p)"/>
-          <text x="440" y="322" font-size="11" class="pending-fill" font-weight="500">legado: supabase-js directo — sin tráfico real hoy</text>
+          <!-- Carril 2 (medio): datos, Browser -> API -> Postgres. Horizontal,
+               sin curvarse hacia arriba ni cruzar el carril de sesion. -->
+          <path d="M230,295 C310,285 360,280 440,277" fill="none" class="flow-line" stroke-width="2.5" marker-end="url(#a1)"/>
+          <text x="245" y="313" font-size="10.5" class="flow-fill">③ hoy: HTTPS + Bearer JWT</text>
 
-          <!-- Browser -> API (active) -->
-          <path d="M230,205 C300,190 340,185 400,207" fill="none" class="flow-line" stroke-width="2.5" marker-end="url(#a1)"/>
-          <text x="248" y="192" font-size="10.5" class="flow-fill">hoy: HTTPS + Bearer JWT</text>
+          <path d="M670,277 C695,277 705,277 730,277" fill="none" class="flow-line" stroke-width="2.5" marker-end="url(#a1)"/>
+          <text x="676" y="296" font-size="10" class="flow-fill">④ EF Core</text>
 
-          <!-- API -> Postgres -->
-          <path d="M620,250 C650,255 665,255 690,252" fill="none" class="flow-line" stroke-width="2.5" marker-end="url(#a1)"/>
-          <text x="627" y="270" font-size="10" class="flow-fill">EF Core</text>
+          <!-- Carril 3 (propio, vertical): API valida contra Auth via JWKS.
+               A la derecha del carril de sesion para no superponerse. -->
+          <path d="M610,190 C610,165 610,150 610,130" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="2 3" marker-end="url(#a1m)"/>
+          <text x="622" y="160" font-size="10" class="muted">⑤ fetch JWKS (cache)</text>
 
-          <!-- API -> Auth (JWKS) -->
-          <path d="M470,170 C460,150 460,130 460,122" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="2 3" marker-end="url(#a1m)"/>
-          <text x="330" y="150" font-size="10" class="muted">fetch JWKS (cache)</text>
+          <!-- Carril 4 (abajo de todo, separado): legado, Browser -> Postgres
+               directo. Pasa muy por debajo de la API a propósito, para que
+               nunca se confunda con el carril de datos activo (③④). -->
+          <path d="M140,370 C260,470 640,470 760,382" fill="none" class="pending-line" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a1p)"/>
+          <text x="450" y="462" text-anchor="middle" font-size="11" class="pending-fill" font-weight="500">⑥ legado: supabase-js directo — sin tráfico real hoy</text>
         </svg>
       </div>
-      <figcaption>El navegador autentica siempre contra Supabase Auth (arriba). Para datos, hoy pasa siempre por la API en C# (teal, sólido); el camino directo a Postgres (ámbar, punteado) sigue protegido por RLS pero ya no recibe tráfico del panel admin — queda como defensa en profundidad, no como autorización primaria.</figcaption>
+      <figcaption>Cada flecha vive en su propio carril para que no se crucen: ① y ② son la sesión (Browser ↔ Auth, arriba); ③ y ④ son el camino activo de datos (Browser → API → Postgres, al medio, teal sólido); ⑤ es la API validando el JWT contra Auth (vertical, punteado gris); ⑥ es el único camino legado (Browser → Postgres directo, ámbar punteado) — deliberadamente trazado bien por debajo de todo lo demás porque ya no recibe tráfico del panel admin y solo queda protegido por RLS como defensa en profundidad.</figcaption>
     </figure>
   </section>
 
@@ -639,23 +644,23 @@
   <section class="panel" id="tests">
     <div class="panel-head">
       <span class="eyebrow">05 — tests</span>
-      <h2>Todavía no hay cobertura automatizada</h2>
-      <p>Con la migración del frontend cerrada, esta es la siguiente fase acordada: reforzar con tests antes de operar con datos reales. Hoy se valida todo a mano (build + smoke test manual en navegador contra la API real).</p>
+      <h2>API cubierta y en CI; frontend y RLS todavía no</h2>
+      <p>La API tiene 20 tests de integración corriendo contra Postgres real, y un pipeline de CI que los ejecuta en cada push/PR. Frontend y las policies RLS siguen sin cobertura automatizada — es lo que sigue.</p>
     </div>
     <figure>
       <div class="scroller">
-        <svg viewBox="0 0 860 260" role="img" aria-label="Tres cajas, Frontend, API y Postgres, cada una marcada como sin cobertura de tests hoy, con la herramienta recomendada para cada una, más una cuarta caja para tests end-to-end con Playwright cubriendo frontend y API juntos.">
+        <svg viewBox="0 0 860 260" role="img" aria-label="Tres cajas: Frontend todavia sin tests, API con 20 tests xUnit contra Postgres real via Testcontainers y corriendo en CI, Postgres/RLS todavia sin tests, mas una cuarta caja para tests end-to-end con Playwright cubriendo frontend y API juntos.">
           <rect x="20" y="20" width="250" height="120" rx="8" class="box" stroke-dasharray="5 4" stroke="var(--security)" stroke-width="1.5"/>
           <text x="145" y="50" text-anchor="middle" font-size="13" font-weight="600">Frontend</text>
           <text x="145" y="70" text-anchor="middle" font-size="11" class="security-fill" font-family="IBM Plex Mono, monospace">sin tests</text>
           <text x="145" y="96" text-anchor="middle" font-size="11" class="muted">sugerido: Vitest +</text>
           <text x="145" y="112" text-anchor="middle" font-size="11" class="muted">Testing Library</text>
 
-          <rect x="305" y="20" width="250" height="120" rx="8" class="box" stroke-dasharray="5 4" stroke="var(--security)" stroke-width="1.5"/>
+          <rect x="305" y="20" width="250" height="120" rx="8" class="box" stroke="var(--flow)" stroke-width="1.5"/>
           <text x="430" y="50" text-anchor="middle" font-size="13" font-weight="600">API (.NET)</text>
-          <text x="430" y="70" text-anchor="middle" font-size="11" class="security-fill" font-family="IBM Plex Mono, monospace">sin tests</text>
-          <text x="430" y="96" text-anchor="middle" font-size="11" class="muted">sugerido: xUnit +</text>
-          <text x="430" y="112" text-anchor="middle" font-size="11" class="muted">WebApplicationFactory</text>
+          <text x="430" y="70" text-anchor="middle" font-size="11" class="flow-fill" font-family="IBM Plex Mono, monospace">20 tests · en CI</text>
+          <text x="430" y="96" text-anchor="middle" font-size="11" class="muted">xUnit + WebApplicationFactory</text>
+          <text x="430" y="112" text-anchor="middle" font-size="11" class="muted">Testcontainers (Postgres real)</text>
 
           <rect x="590" y="20" width="250" height="120" rx="8" class="box" stroke-dasharray="5 4" stroke="var(--security)" stroke-width="1.5"/>
           <text x="715" y="50" text-anchor="middle" font-size="13" font-weight="600">Postgres / RLS</text>
@@ -668,7 +673,7 @@
           <text x="430" y="223" text-anchor="middle" font-size="11" class="muted">flujos críticos de punta a punta: login → cliente → sitio → unidad → activo, contra frontend + API reales</text>
         </svg>
       </div>
-      <figcaption>Prioridad sugerida: primero unit/integration de la API (es la lógica de autorización nueva), en paralelo unit tests del frontend, y Playwright acotado a los flujos críticos — no como reemplazo de la cobertura unitaria. Revisión de seguridad como paso aparte antes de operar con datos reales.</figcaption>
+      <figcaption>La API (teal, sólido) ya tiene cobertura de integración real y corre en <code>.github/workflows/ci.yml</code> en cada push/PR. Frontend y RLS (ámbar, punteado) siguen siendo deuda pendiente — frontend es la siguiente prioridad del roadmap, Playwright queda acotado a los flujos críticos, no como reemplazo de cobertura unitaria.</figcaption>
     </figure>
   </section>
 

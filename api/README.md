@@ -93,8 +93,15 @@ cuando el frontend los necesite.
 - Migracion del frontend completa: `frontend/` ya llama a esta API para
   todo dato de negocio (`src/lib/apiClient.js`); `@supabase/supabase-js`
   queda solo para Supabase Auth (login/sesion).
-- Sin tests todavia en ninguna capa (API ni frontend) — candidato:
-  xUnit + `WebApplicationFactory` para la API.
+- Tests de la API ya existen: `src/Stc.Api.Tests` (xUnit +
+  `WebApplicationFactory` + Testcontainers, Postgres real). CI
+  (`.github/workflows/ci.yml`) los corre en cada push/PR. El frontend
+  todavia no tiene proyecto de tests.
+- `POST /leads` (unica superficie publica sin sesion) ya tiene rate
+  limiting (5 req/min por IP, `AddRateLimiter`) y validacion de input
+  (`ValidarCrearLead` en `Endpoints/LeadsEndpoints.cs`).
 - Sin CORS definido para produccion (`Program.cs` solo habilita el
-  origen de Vite en desarrollo).
+  origen de Vite en desarrollo) — decision diferida a proposito hasta
+  que exista un dominio real de deploy, no un olvido (ver
+  `docs/roadmap-fortalecimiento.md`).
 - Endpoints para `orden_items` y `adjuntos` cuando se necesiten.

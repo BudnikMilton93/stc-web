@@ -35,7 +35,7 @@ dotnet run --project src/Stc.Api    # corre en http://localhost:5004 (perfil "ht
 
 La connection string debe usar el **connection pooler de Supabase en modo sesión (puerto 5432)**, no el host directo (resuelve a IPv6, muchas redes no lo rutean) ni el modo transacción (puerto 6543): este último no soporta bien la carga de los enums nativos de Postgres que usa el proyecto (`MapEnum`) y las queries quedan colgadas hasta timeout.
 
-No hay proyectos de test todavía en ninguna de las dos capas.
+`api/src/Stc.Api.Tests` tiene tests de la API (xUnit + `WebApplicationFactory`, Postgres real vía Testcontainers — correr con `dotnet test` desde `api/`). El frontend todavía no tiene proyecto de tests. CI (`.github/workflows/ci.yml`, GitHub Actions) corre en cada push/PR: job `frontend` (`npm ci` → lint → build) y job `api` (`dotnet restore` → build Release → test Release contra Postgres real). Ver `docs/roadmap-fortalecimiento.md` para el estado de esta y otra deuda técnica conocida.
 
 ### Supabase / base de datos (`supabase/`)
 

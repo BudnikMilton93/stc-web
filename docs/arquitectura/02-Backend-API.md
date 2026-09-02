@@ -37,7 +37,7 @@ El sistema es de un solo usuario admin, sin roles. Esto colapsó el esquema staf
 
 - Policy única **Activo** (`RequireClaim("activo","true")`, cualquier usuario activo en la tabla `usuarios`): puede leer/crear/actualizar/borrar todos los recursos. No hay distinción de rol ni de delete-only-admin.
 - `PUT /ordenes` ya no tiene chequeo manual de ownership — el campo `TecnicoId` en `OrdenTrabajo` se mantiene como dato operativo/histórico, sin efecto en la autorización.
-- Excepción puntual: `POST /leads` es público (`AllowAnonymous`) — es el formulario de contacto del sitio, sin sesión.
+- Excepción puntual: `POST /leads` es público (`AllowAnonymous`) — es el formulario de contacto del sitio, sin sesión. Al ser la única superficie pública sin sesión, tiene rate limiting (`AddRateLimiter`/`FixedWindowLimiter` particionado por IP, 5 req/min, `.RequireRateLimiting("leads")`) y validación de input (`ValidarCrearLead` en `Endpoints/LeadsEndpoints.cs`: nombre obligatorio, email validado, límites de longitud) que no aplican al resto de los endpoints.
 
 Mecanismo:
 
@@ -84,5 +84,5 @@ Al conectar el frontend real contra la API se encontraron y corrigieron varios p
 
 1. Evaluar si vale la pena endurecer más las policies RLS actuales (hoy protegen el escenario "frontend habla directo con la anon key"; con la migración completa, esa capa pasa a ser defensa en profundidad, no la autorización primaria).
 2. Endpoints para `orden_items` y `adjuntos`, cuando se implemente la pantalla de Órdenes (hoy es un placeholder). No hay pantalla de Usuarios pendiente: `frontend/src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin.
-3. Reforzar la solución con tests automatizados (unit/integration del lado de la API, unit del lado del frontend, y e2e con Playwright para los flujos críticos) y una revisión de seguridad, antes de operar con datos reales de producción.
-4. Definir dónde y cómo se hospeda la API en un ambiente de producción — hoy solo corre en local (`localhost:5004`).
+3. Tests automatizados de la API (`api/src/Stc.Api.Tests`, xUnit + `WebApplicationFactory` + Testcontainers) y una revisión de seguridad ya están hechos (ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md) para el detalle), igual que CI básico (`.github/workflows/ci.yml`, build+lint del frontend y build+tests de la API en cada push/PR). Queda pendiente la cobertura de tests del lado del frontend (Vitest + Testing Library) y e2e de flujos críticos (Playwright), antes de operar con datos reales de producción.
+4. Definir dónde y cómo se hospeda la API en un ambiente de producción — hoy solo corre en local (`localhost:5004`). CORS de producción queda deliberadamente diferido hasta que exista ese dominio real (ver roadmap).

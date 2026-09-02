@@ -200,4 +200,4 @@ El flujo principal que ya está armado es:
 - El CRUD de clientes, sitios, unidades, ocupantes y activos ya está operativo y **consume la API en C#** (ver [02-Backend-API.md](02-Backend-API.md)), no Supabase directo.
 - La baja lógica está resuelta en la UI actual (flag de texto en `notas`, salvo activos que usan un campo `estado` real).
 - La pantalla de órdenes todavía está pendiente de implementación funcional (queda para una próxima fase). No hay pantalla de usuarios: se eliminó al simplificar el sistema a un solo usuario admin, sin roles.
-- Pendiente antes de operar con datos reales: tests automatizados (unit/integration de API y frontend, e2e con Playwright) y una revisión de seguridad — ver "Próximos pasos" en [02-Backend-API.md](02-Backend-API.md).
+- Tests automatizados de la API y una revisión de seguridad ya están hechos (ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md)). Pendiente antes de operar con datos reales: tests automatizados del frontend y e2e con Playwright — ver "Próximos pasos" en [02-Backend-API.md](02-Backend-API.md).
