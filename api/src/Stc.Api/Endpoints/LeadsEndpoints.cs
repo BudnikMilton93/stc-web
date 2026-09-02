@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
 using Stc.Domain.Entities;
 using Stc.Domain.Enums;
@@ -11,17 +12,22 @@ public static class LeadsEndpoints
     {
         var group = app.MapGroup("/leads");
 
-        // Formulario publico del sitio: cualquiera puede crear un lead, sin sesion.
+        // Formulario publico del sitio: cualquiera puede crear un lead, sin
+        // sesion. Es la unica superficie del sistema expuesta a internet sin
+        // autenticacion, de ahi la validacion de input y el rate limit.
         group.MapPost("/", async (CrearLeadRequest request, StcDbContext db, CancellationToken ct) =>
         {
+            var error = ValidarCrearLead(request);
+            if (error is not null) return error;
+
             var lead = new Lead
             {
                 Id = Guid.NewGuid(),
-                Nombre = request.Nombre,
-                Telefono = request.Telefono,
-                Email = request.Email,
-                ServicioInteres = request.ServicioInteres,
-                Mensaje = request.Mensaje,
+                Nombre = request.Nombre.Trim(),
+                Telefono = request.Telefono?.Trim(),
+                Email = request.Email?.Trim(),
+                ServicioInteres = request.ServicioInteres?.Trim(),
+                Mensaje = request.Mensaje?.Trim(),
             };
 
             db.Leads.Add(lead);
@@ -29,7 +35,7 @@ public static class LeadsEndpoints
 
             return Results.Created($"/leads/{lead.Id}",
                 new LeadResponse(lead.Id, lead.Nombre, lead.Telefono, lead.Email, lead.ServicioInteres, lead.Mensaje, lead.Estado, lead.ClienteId));
-        }).AllowAnonymous();
+        }).AllowAnonymous().RequireRateLimiting("leads");
 
         group.MapGet("/", async (StcDbContext db, CancellationToken ct) =>
         {
@@ -60,6 +66,45 @@ public static class LeadsEndpoints
             var filas = await db.Leads.Where(l => l.Id == id).ExecuteDeleteAsync(ct);
             return filas == 0 ? Results.NotFound() : Results.NoContent();
         }).RequireAuthorization("Activo");
+    }
+
+    private static IResult? ValidarCrearLead(CrearLeadRequest request)
+    {
+        var errores = new Dictionary<string, string[]>();
+
+        if (string.IsNullOrWhiteSpace(request.Nombre))
+        {
+            errores["nombre"] = ["El nombre es obligatorio."];
+        }
+        else if (request.Nombre.Length > 200)
+        {
+            errores["nombre"] = ["El nombre no puede superar los 200 caracteres."];
+        }
+
+        if (request.Telefono?.Length > 50)
+        {
+            errores["telefono"] = ["El telefono no puede superar los 50 caracteres."];
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            if (request.Email.Length > 320 || !MailAddress.TryCreate(request.Email, out _))
+            {
+                errores["email"] = ["El email no es valido."];
+            }
+        }
+
+        if (request.ServicioInteres?.Length > 100)
+        {
+            errores["servicioInteres"] = ["El servicio de interes no puede superar los 100 caracteres."];
+        }
+
+        if (request.Mensaje?.Length > 2000)
+        {
+            errores["mensaje"] = ["El mensaje no puede superar los 2000 caracteres."];
+        }
+
+        return errores.Count == 0 ? null : Results.ValidationProblem(errores);
     }
 }
 

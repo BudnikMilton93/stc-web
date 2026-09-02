@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Tokens;
@@ -64,6 +66,24 @@ builder.Services
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Activo", p => p.RequireClaim("activo", "true"));
 
+// POST /leads es la unica superficie publica del sistema (sin sesion,
+// sin CAPTCHA): limitar por IP evita que alguien la use para floodear
+// la tabla de leads o generar carga arbitraria en la base.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("leads", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+});
+
 const string FrontendDevCorsPolicy = "FrontendDev";
 
 // Solo para desarrollo: el frontend (Vite) corre en un puerto distinto al de
@@ -86,6 +106,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseMiddleware<CurrentUserEnrichmentMiddleware>();

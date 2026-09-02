@@ -60,4 +60,46 @@ public class LeadsEndpointsTests(PostgresApiFixture fixture)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Anonimo_no_puede_crear_un_lead_sin_nombre()
+    {
+        var client = _factory.CreateAnonymousClient();
+        var request = new CrearLeadRequest("   ", null, null, null, null);
+
+        var response = await client.PostAsJsonAsync("/leads", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Anonimo_no_puede_crear_un_lead_con_email_invalido()
+    {
+        var client = _factory.CreateAnonymousClient();
+        var request = new CrearLeadRequest("Juan Perez", null, "no-es-un-email", null, null);
+
+        var response = await client.PostAsJsonAsync("/leads", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Anonimo_supera_el_limite_de_leads_por_minuto_y_recibe_429()
+    {
+        // Factory aislada (mismo Postgres, otro host en memoria) para que el
+        // contador del rate limiter no interfiera con el resto de los tests
+        // de esta clase, que comparten la factory de la coleccion.
+        using var factory = new StcApiFactory(fixture.ConnectionString);
+        var client = factory.CreateAnonymousClient();
+
+        for (var i = 0; i < 5; i++)
+        {
+            var ok = await client.PostAsJsonAsync("/leads", new CrearLeadRequest($"Lead {i}", null, null, null, null));
+            Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
+        }
+
+        var sexto = await client.PostAsJsonAsync("/leads", new CrearLeadRequest("Lead 6", null, null, null, null));
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, sexto.StatusCode);
+    }
 }
