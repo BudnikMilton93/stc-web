@@ -14,6 +14,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 4 | Tests de frontend (Vitest + Testing Library) | Hecho | 25 tests en `frontend/src/**/*.test.{js,jsx}` |
 | 5 | E2E de flujos críticos (Playwright) | Hecho | 2 specs en `frontend/e2e/`, corrida manual (`npm run test:e2e`), fuera del CI a propósito |
 | 6 | Endpoints `orden_items` y `adjuntos` | Pendiente, sin urgencia | Sub-recursos; esperar a que el frontend los necesite (ordenes/usuarios siguen siendo placeholders) |
+| 7 | Baja lógica de `sitios`/`unidades`/`ocupantes` vía flag de texto en `notas` | Pendiente, importante | No hay soft-delete real en el schema para estas 3 tablas; se simula escribiendo `[BAJA_LOGICA]` dentro de `notas`. Reemplazar por una columna real |
 
 ## Detalle
 
@@ -57,6 +58,17 @@ Playwright, `frontend/e2e/`. El flujo real es login → cliente → sitio → un
 
 ### 6. Endpoints faltantes
 `orden_items` y `adjuntos` son las únicas tablas del schema sin endpoint propio. No es urgente: `src/features/ordenes` del frontend sigue siendo un placeholder sin CRUD funcional, así que no hay consumidor todavía (`src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin, sin roles).
+
+### 7. Baja lógica de `sitios`/`unidades`/`ocupantes` vía flag de texto en `notas` — Pendiente, importante
+Detectado al refactorizar el ABM de detalle de cliente (sitios → unidades → ocupantes/activos, ver `frontend/src/features/clientes/utils/archiveFlag.js`). El schema (`supabase/migrations/20260724195455_schema.sql`) no tiene una columna real de estado/borrado lógico para `sitios`, `unidades` ni `ocupantes` — solo tienen `notas text` libre. Para poder "dar de baja" y "rehabilitar" estos registros sin un DELETE real, el frontend embebe un marcador `[BAJA_LOGICA]` dentro del propio campo `notas` (`isArchivedRecord`/`addArchiveFlag`/`removeArchiveFlag`) y lo interpreta con matching de substring.
+
+Por qué es un problema:
+- Mezcla dos responsabilidades en un mismo campo: observaciones libres del técnico y estado del sistema.
+- Frágil: si alguien escribe ese texto literal en una nota real, el registro queda "archivado" por accidente.
+- No es queryable de forma eficiente (no hay índice ni tipo — es texto libre parseado en el backend/frontend).
+- Contraste con `activos`, que sí resuelve esto bien: tiene una columna real `estado` (enum, con valor `deBaja`).
+
+Solución propuesta: agregar una columna real (booleano `activo` o un enum de estado, siguiendo el patrón ya usado en `activos`) a `sitios`, `unidades` y `ocupantes` vía una migración nueva en `supabase/migrations/`, regenerar `frontend/src/types/database.types.ts`, actualizar las configuraciones Fluent API / entidades en `api/src/Stc.Infrastructure` y los endpoints correspondientes en `api/src/Stc.Api/Endpoints`, y simplificar los hooks del frontend (`useSitioForm`, `useUnidadForm`, `useOcupanteForm` y los hooks de listado) para leer/escribir ese campo en vez de manipular `notas`. Cruza las 3 capas (DB + API + frontend), no es un cambio menor.
 
 ## Cómo usar este documento
 
