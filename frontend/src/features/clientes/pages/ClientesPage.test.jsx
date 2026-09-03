@@ -98,6 +98,17 @@ describe('ClientesPage', () => {
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
+  it('al editar un cliente, precarga el select de Tipo con el valor real del cliente (no siempre "persona")', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await screen.findByText('Consorcio Colon')
+
+    await user.click(screen.getByRole('button', { name: /Editar cliente Consorcio Colon/i }))
+
+    expect(screen.getByLabelText('Tipo')).toHaveValue('empresa')
+  })
+
   it('muestra el mensaje de ApiError en el form sin cerrarlo si falla el guardado', async () => {
     const user = userEvent.setup()
     apiClient.post.mockRejectedValue(new ApiError(400, { title: 'Nombre duplicado' }, 'Nombre duplicado'))
