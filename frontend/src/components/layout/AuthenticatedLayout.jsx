@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { FiBox, FiClipboard, FiUsers } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext'
 
 const menuItems = [
-  { to: '/panel-admin/clientes', label: 'Clientes' },
-  { to: '/panel-admin/ordenes', label: 'Ordenes de trabajo' },
-  { to: '/panel-admin/inventario', label: 'Activos globales' },
+  { to: '/panel-admin/clientes', label: 'Clientes', icon: FiUsers },
+  { to: '/panel-admin/ordenes', label: 'Ordenes de trabajo', icon: FiClipboard },
+  { to: '/panel-admin/inventario', label: 'Activos globales', icon: FiBox },
 ]
 
 export function AuthenticatedLayout() {
@@ -24,6 +25,7 @@ export function AuthenticatedLayout() {
                 isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'
               }
             >
+              <item.icon aria-hidden="true" />
               {item.label}
             </NavLink>
           ))}
@@ -39,7 +41,7 @@ export function AuthenticatedLayout() {
           </div>
 
           <button type="button" className="logout-btn" onClick={() => void logout()}>
-            Cerrar sesion
+            Cerrar sesión
           </button>
         </header>
 
