@@ -298,11 +298,21 @@ h1 {
 }
 
 .sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   text-decoration: none;
   color: #6f3737;
-  padding: 0.7rem 0.8rem;
-  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 999px;
   border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.sidebar-link svg {
+  flex-shrink: 0;
+  font-size: 1.05rem;
+  opacity: 0.85;
 }
 
 .sidebar-link:hover {
@@ -311,10 +321,20 @@ h1 {
 }
 
 .sidebar-link-active {
-  color: var(--red-900);
-  border-color: #e7a4a4;
-  background: #fff5f5;
+  color: #fff5f5;
+  border-color: transparent;
+  background: linear-gradient(135deg, #57151d, #b52d37);
   font-weight: 700;
+  box-shadow: 0 6px 16px rgba(147, 15, 15, 0.22);
+}
+
+.sidebar-link-active svg {
+  opacity: 1;
+}
+
+.sidebar-link-active:hover {
+  border-color: transparent;
+  background: linear-gradient(135deg, #57151d, #b52d37);
 }
 
 .auth-main {
@@ -708,16 +728,75 @@ h1 {
   margin-bottom: 0.75rem;
 }
 
-.search-field {
-  display: grid;
-  gap: 0.35rem;
-  width: min(460px, 100%);
-  color: #5f3535;
-  font-size: 0.88rem;
-  font-weight: 600;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.search-field input,
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(360px, 100%);
+}
+
+.search-field-icon {
+  position: absolute;
+  left: 0.9rem;
+  color: #b56d6d;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.search-field input {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.55rem 2.2rem;
+  font: inherit;
+  background: #fbeeee;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-field input:focus {
+  outline: none;
+  background: #fff;
+  border-color: var(--red-500);
+  box-shadow: 0 0 0 3px rgba(200, 53, 61, 0.14);
+}
+
+.search-field-clear {
+  position: absolute;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #b56d6d;
+  cursor: pointer;
+}
+
+.search-field-clear:hover {
+  background: rgba(200, 53, 61, 0.1);
+  color: var(--red-500);
+}
+
 .crud-form input,
 .crud-form select,
 .crud-form textarea,
@@ -730,7 +809,12 @@ h1 {
   background: #fff;
 }
 
-.search-field input:focus,
+.crud-form textarea {
+  width: 100%;
+  max-width: 100%;
+  resize: vertical;
+}
+
 .crud-form input:focus,
 .crud-form select:focus,
 .crud-form textarea:focus,
@@ -909,11 +993,14 @@ h1 {
 
 .compact-shell {
   max-height: 420px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .data-grid-table {
   display: grid;
+  width: 100%;
+  min-width: 0;
 }
 
 .occupants-grid .data-grid-head,
@@ -926,6 +1013,15 @@ h1 {
   grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(150px, 1fr) minmax(110px, 0.8fr) minmax(180px, 1fr);
 }
 
+.icon-only-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+}
+
 .units-grid {
   grid-template-columns: minmax(170px, 260px) max-content max-content max-content max-content;
 }
@@ -934,6 +1030,7 @@ h1 {
   width: fit-content;
   max-width: 100%;
   order: 1;
+  overflow-x: auto;
 }
 
 .units-grid {
@@ -1024,6 +1121,10 @@ h1 {
   .units-grid .unit-action-label {
     transition: none;
   }
+
+  .page-fade-in {
+    animation: none;
+  }
 }
 
 .units-grid .data-grid-cell {
@@ -1055,6 +1156,7 @@ h1 {
 .data-grid-row {
   display: grid;
   align-items: center;
+  grid-template-columns: var(--dg-columns, 1fr);
 }
 
 .data-grid-head {
@@ -1254,6 +1356,50 @@ h1 {
   letter-spacing: 0.04em;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 9, 0.6);
+  display: grid;
+  place-items: start center;
+  padding: 4vh 1rem;
+  overflow-y: auto;
+  z-index: 100;
+  animation: fadeSlide 180ms ease-out both;
+}
+
+.modal-card {
+  width: min(640px, 100%);
+  overflow-x: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #ffd3d5;
+  font-family: 'Barlow', sans-serif;
+}
+
+.modal-body {
+  padding: 1.2rem;
+}
+
+.modal-body .crud-form {
+  margin: 0;
+}
+
 @keyframes fadeSlide {
   from {
     opacity: 0;
@@ -1262,6 +1408,19 @@ h1 {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.page-fade-in {
+  animation: fadeIn 220ms ease-out both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -1326,10 +1485,12 @@ h1 {
   background: #33252a;
 }
 
-.sidebar-link-active {
+.sidebar-link-active,
+.sidebar-link-active:hover {
   color: #ffe1e2;
-  border-color: #a54a53;
-  background: linear-gradient(90deg, #56232b, #3a262b);
+  border-color: transparent;
+  background: linear-gradient(135deg, #8a2530, #c8353d);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
 .auth-header {
@@ -1419,7 +1580,6 @@ h1 {
   color: #d9abb0;
 }
 
-.search-field input,
 .crud-form input,
 .crud-form select,
 .crud-form textarea,
@@ -1430,13 +1590,33 @@ h1 {
   color: var(--ink);
 }
 
-.search-field input:focus,
 .crud-form input:focus,
 .crud-form select:focus,
 .crud-form textarea:focus,
 .filter-grid input:focus,
 .filter-grid select:focus {
   outline-color: #d9545a;
+}
+
+.search-field input {
+  background: #2a2226;
+  color: var(--ink);
+}
+
+.search-field input:focus {
+  background: #1d1b1f;
+  border-color: #d9545a;
+  box-shadow: 0 0 0 3px rgba(217, 84, 90, 0.18);
+}
+
+.search-field-icon,
+.search-field-clear {
+  color: #c99498;
+}
+
+.search-field-clear:hover {
+  background: rgba(217, 84, 90, 0.16);
+  color: #ffc1c3;
 }
 
 .danger-btn {
@@ -1641,6 +1821,7 @@ h1 {
   }
 
   .data-grid-row {
+    grid-template-columns: 1fr;
     gap: 0.2rem;
     padding: 0.2rem 0;
   }
