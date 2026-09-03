@@ -16,6 +16,8 @@ import {
   FiXCircle,
 } from 'react-icons/fi'
 import { apiClient, ApiError } from '../../../lib/apiClient'
+import { Modal } from '../../../components/ui/Modal'
+import { DataGrid } from '../../../components/ui/DataGrid'
 
 const SITIO_TIPOS = ['edificio', 'casa', 'oficina', 'comercio', 'otro']
 
@@ -298,13 +300,101 @@ export function ClienteDetailPage() {
     await loadData()
   }
 
+  const sitiosColumns = [
+    {
+      key: 'sitio',
+      header: 'Sitio',
+      width: 'minmax(180px, 1.6fr)',
+      primary: true,
+      render: (sitio) => (
+        <>
+          <strong className="list-title-with-icon">
+            <FiMapPin aria-hidden="true" />
+            {sitio.nombre}
+          </strong>
+          <span className="unit-notes">
+            {sitio.tipo} • {sitio.direccion}
+            {sitio.ciudad ? ` • ${sitio.ciudad}` : ''}
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'departamentos',
+      header: 'Departamentos',
+      width: 'minmax(150px, 1fr)',
+      render: (sitio) => {
+        const unidadCount = sitioUnidadCountMap[sitio.id] ?? 0
+        return (
+          <span className={`status-chip ${unidadCount > 0 ? 'ok' : 'empty'}`}>
+            {unidadCount > 0 ? <FiCheckCircle aria-hidden="true" /> : <FiXCircle aria-hidden="true" />}
+            {unidadCount > 0 ? `${unidadCount} departamento${unidadCount > 1 ? 's' : ''}` : 'Sin departamentos'}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'situacion',
+      header: 'Situación',
+      width: 'minmax(110px, 0.8fr)',
+      render: (sitio) =>
+        isArchivedRecord(sitio.notas) ? (
+          <span className="warning-chip">Dado de baja</span>
+        ) : (
+          <span className="status-chip ok">Activo</span>
+        ),
+    },
+    {
+      key: 'gestionar',
+      header: 'Gestionar',
+      width: 'minmax(180px, 1fr)',
+      actions: true,
+      render: (sitio) => {
+        const archived = isArchivedRecord(sitio.notas)
+        return (
+          <>
+            <button type="button" className="ghost-btn minimal-btn" onClick={() => startEditSitio(sitio)}>
+              <FiEdit2 aria-hidden="true" />
+              Editar
+            </button>
+            {archived ? (
+              <button
+                type="button"
+                className="ghost-btn minimal-btn"
+                disabled={sitioActionLoadingId === sitio.id}
+                onClick={() => void handleRestoreSitio(sitio)}
+              >
+                <FiRotateCcw aria-hidden="true" />
+                Rehabilitar
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="danger-btn minimal-btn"
+                disabled={sitioActionLoadingId === sitio.id}
+                onClick={() => void handleBajaSitio(sitio)}
+              >
+                <FiArchive aria-hidden="true" />
+                Dar de baja
+              </button>
+            )}
+            <Link className="ghost-btn minimal-btn" to={`/panel-admin/clientes/${clienteId}/sitios/${sitio.id}`}>
+              <FiEye aria-hidden="true" />
+              Ver detalle
+            </Link>
+          </>
+        )
+      },
+    },
+  ]
+
   if (loading) {
-    return <section className="placeholder-card">Cargando cliente...</section>
+    return <section className="placeholder-card page-fade-in">Cargando cliente...</section>
   }
 
   if (pageError) {
     return (
-      <section className="placeholder-card">
+      <section className="placeholder-card page-fade-in">
         <h2>Detalle de cliente</h2>
         <p className="form-error">{pageError}</p>
       </section>
@@ -312,7 +402,7 @@ export function ClienteDetailPage() {
   }
 
   return (
-    <section className="crud-shell">
+    <section className="crud-shell page-fade-in">
       <div className="crud-header">
         <div>
           <p className="eyebrow">Cliente</p>
@@ -375,134 +465,75 @@ export function ClienteDetailPage() {
           Mostrar sitios dados de baja
         </label>
 
-        {showCreateSitio && (
-          <form className="crud-form" onSubmit={handleSaveSitio}>
-            <label>
-              Nombre
-              <input
-                value={sitioForm.nombre}
-                onChange={(e) => setSitioForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                required
-              />
-            </label>
-            <label>
-              Tipo
-              <select
-                value={sitioForm.tipo}
-                onChange={(e) => setSitioForm((prev) => ({ ...prev, tipo: e.target.value }))}
-              >
-                {SITIO_TIPOS.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipo}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Direccion
-              <input
-                value={sitioForm.direccion}
-                onChange={(e) => setSitioForm((prev) => ({ ...prev, direccion: e.target.value }))}
-                required
-              />
-            </label>
-            <label>
-              Ciudad
-              <input
-                value={sitioForm.ciudad}
-                onChange={(e) => setSitioForm((prev) => ({ ...prev, ciudad: e.target.value }))}
-              />
-            </label>
-            <label className="span-2">
-              Notas
-              <textarea
-                rows={3}
-                value={sitioForm.notas}
-                onChange={(e) => setSitioForm((prev) => ({ ...prev, notas: e.target.value }))}
-              />
-            </label>
-
-            {sitioError ? <p className="form-error span-2">{sitioError}</p> : null}
-
-            <div className="form-actions span-2">
-              <button className="primary-btn" type="submit" disabled={sitioSaving}>
-                <FiSave aria-hidden="true" />
-                {sitioSaving ? 'Guardando...' : editingSitioId ? 'Guardar cambios' : 'Guardar sitio'}
-              </button>
-              <button type="button" className="ghost-btn" onClick={resetSitioForm}>
-                <FiX aria-hidden="true" />
-                Cancelar
-              </button>
-            </div>
-          </form>
-        )}
-        <br>
-        </br>
-        {visibleSitios.length === 0 ? (
-          <p className="muted-text">Este cliente todavia no tiene sitios registrados.</p>
-        ) : (
-          <div className="list-grid">
-            {visibleSitios.map((sitio) => {
-              const archived = isArchivedRecord(sitio.notas)
-              const unidadCount = sitioUnidadCountMap[sitio.id] ?? 0
-              return (
-              <article className="list-item" key={sitio.id}>
-                <div>
-                  <h4 className="list-title-with-icon">
-                    <FiMapPin aria-hidden="true" />
-                    {sitio.nombre}
-                  </h4>
-                  <p>
-                    {sitio.tipo} • {sitio.direccion}
-                  </p>
-                  {sitio.ciudad ? <p>{sitio.ciudad}</p> : null}
-                  <div className="status-chip-row">
-                    <span className={`status-chip ${unidadCount > 0 ? 'ok' : 'empty'}`}>
-                      {unidadCount > 0 ? <FiCheckCircle aria-hidden="true" /> : <FiXCircle aria-hidden="true" />}
-                      {unidadCount > 0
-                        ? `${unidadCount} departamento${unidadCount > 1 ? 's' : ''}`
-                        : 'Sin departamentos'}
-                    </span>
-                  </div>
-                  {archived ? <p className="warning-chip">Dado de baja</p> : null}
-                </div>
-                <div className="item-actions">
-                  <button type="button" className="ghost-btn" onClick={() => startEditSitio(sitio)}>
-                    <FiEdit2 aria-hidden="true" />
-                    Editar
-                  </button>
-                  {archived ? (
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      disabled={sitioActionLoadingId === sitio.id}
-                      onClick={() => void handleRestoreSitio(sitio)}
-                    >
-                      <FiRotateCcw aria-hidden="true" />
-                      Rehabilitar
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="danger-btn"
-                      disabled={sitioActionLoadingId === sitio.id}
-                      onClick={() => void handleBajaSitio(sitio)}
-                    >
-                      <FiArchive aria-hidden="true" />
-                      Dar de baja
-                    </button>
-                  )}
-                  <Link className="ghost-btn" to={`/panel-admin/clientes/${clienteId}/sitios/${sitio.id}`}>
-                    <FiEye aria-hidden="true" />
-                    Ver detalle
-                  </Link>
-                </div>
-              </article>
-              )
-            })}
-          </div>
-        )}
+        <DataGrid
+          ariaLabel="Sitios del cliente"
+          emptyMessage="Este cliente todavia no tiene sitios registrados."
+          rows={visibleSitios}
+          columns={sitiosColumns}
+        />
       </article>
+
+      <Modal
+        open={showCreateSitio}
+        title={editingSitioId ? 'Editar sitio' : 'Alta de sitio'}
+        onClose={resetSitioForm}
+      >
+        <form className="crud-form" onSubmit={handleSaveSitio}>
+          <label>
+            Nombre
+            <input
+              value={sitioForm.nombre}
+              onChange={(e) => setSitioForm((prev) => ({ ...prev, nombre: e.target.value }))}
+              required
+            />
+          </label>
+          <label>
+            Tipo
+            <select
+              value={sitioForm.tipo}
+              onChange={(e) => setSitioForm((prev) => ({ ...prev, tipo: e.target.value }))}
+            >
+              {SITIO_TIPOS.map((tipo) => (
+                <option key={tipo} value={tipo}>
+                  {tipo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Direccion
+            <input
+              value={sitioForm.direccion}
+              onChange={(e) => setSitioForm((prev) => ({ ...prev, direccion: e.target.value }))}
+              required
+            />
+          </label>
+          <label>
+            Ciudad
+            <input
+              value={sitioForm.ciudad}
+              onChange={(e) => setSitioForm((prev) => ({ ...prev, ciudad: e.target.value }))}
+            />
+          </label>
+          <label className="span-2">
+            Notas
+            <textarea
+              rows={3}
+              value={sitioForm.notas}
+              onChange={(e) => setSitioForm((prev) => ({ ...prev, notas: e.target.value }))}
+            />
+          </label>
+
+          {sitioError ? <p className="form-error span-2">{sitioError}</p> : null}
+
+          <div className="form-actions span-2">
+            <button className="primary-btn" type="submit" disabled={sitioSaving}>
+              <FiSave aria-hidden="true" />
+              {sitioSaving ? 'Guardando...' : editingSitioId ? 'Guardar cambios' : 'Guardar sitio'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </section>
   )
 }
