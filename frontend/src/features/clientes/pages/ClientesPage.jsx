@@ -54,7 +54,7 @@ export function ClientesPage() {
     },
     {
       key: 'editar',
-      header: 'Editar',
+      header: '',
       width: '4.6rem',
       align: 'center',
       actions: true,
@@ -72,7 +72,7 @@ export function ClientesPage() {
     },
     {
       key: 'detalle',
-      header: 'Detalle',
+      header: '',
       width: '4.6rem',
       align: 'center',
       actions: true,
