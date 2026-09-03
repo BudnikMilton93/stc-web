@@ -1,517 +1,293 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import {
+  FiArchive,
   FiCheckCircle,
   FiCpu,
-  FiHome,
+  FiEdit2,
   FiLock,
   FiMapPin,
+  FiPlus,
   FiPlusCircle,
+  FiRotateCcw,
+  FiSave,
   FiTool,
   FiUserPlus,
   FiUsers,
+  FiX,
 } from 'react-icons/fi'
-import { apiClient, ApiError } from '../../../lib/apiClient'
+import { Modal } from '../../../components/ui/Modal'
+import { DataGrid } from '../../../components/ui/DataGrid'
+import { Breadcrumb } from '../../../components/ui/Breadcrumb'
+import { useUnidadDetail } from '../hooks/useUnidadDetail'
+import { useOcupantesDeUnidad } from '../hooks/useOcupantesDeUnidad'
+import { useOcupanteForm } from '../hooks/useOcupanteForm'
+import { useActivosDeUnidad } from '../hooks/useActivosDeUnidad'
+import { useActivoForm } from '../hooks/useActivoForm'
+import { isArchivedRecord } from '../utils/archiveFlag'
 
 const TIPOS_ACTIVO = ['camara', 'portero', 'cerraduraMagnetica', 'otro']
-
-const initialOcupanteForm = {
-  nombre: '',
-  telefono: '',
-  email: '',
-  es_titular: true,
-  notas: '',
-}
-
-const initialActivoForm = {
-  tipo: 'camara',
-  marca: '',
-  modelo: '',
-  numero_serie: '',
-  fecha_instalacion: '',
-  garantia_hasta: '',
-  notas: '',
-}
-
-const ARCHIVE_FLAG = '[BAJA_LOGICA]'
-
-function isArchivedRecord(notas) {
-  return typeof notas === 'string' && notas.includes(ARCHIVE_FLAG)
-}
-
-function addArchiveFlag(notas) {
-  if (isArchivedRecord(notas)) {
-    return notas
-  }
-  return notas ? `${notas}\n${ARCHIVE_FLAG}` : ARCHIVE_FLAG
-}
-
-function removeArchiveFlag(notas) {
-  if (!notas) {
-    return null
-  }
-
-  const cleaned = notas
-    .replace(ARCHIVE_FLAG, '')
-    .replace(/\n{2,}/g, '\n')
-    .trim()
-
-  return cleaned || null
-}
 
 export function UnidadDetailPage() {
   const { clienteId, sitioId, unidadId } = useParams()
 
-  const [loading, setLoading] = useState(true)
-  const [pageError, setPageError] = useState('')
-
-  const [unidad, setUnidad] = useState(null)
-  const [sitio, setSitio] = useState(null)
-  const [cliente, setCliente] = useState(null)
-  const [ocupantes, setOcupantes] = useState([])
-  const [activos, setActivos] = useState([])
-
-  const [showOcupanteForm, setShowOcupanteForm] = useState(false)
-  const [editingOcupanteId, setEditingOcupanteId] = useState('')
-  const [includeArchivedOcupantes, setIncludeArchivedOcupantes] = useState(false)
-  const [ocupanteForm, setOcupanteForm] = useState(initialOcupanteForm)
-  const [ocupanteSaving, setOcupanteSaving] = useState(false)
-  const [ocupanteActionLoadingId, setOcupanteActionLoadingId] = useState('')
-  const [ocupanteError, setOcupanteError] = useState('')
-
-  const [editingActivoId, setEditingActivoId] = useState('')
-  const [includeInactiveActivos, setIncludeInactiveActivos] = useState(false)
-  const [activoForm, setActivoForm] = useState(initialActivoForm)
-  const [activoSaving, setActivoSaving] = useState(false)
-  const [activoActionLoadingId, setActivoActionLoadingId] = useState('')
-  const [activoError, setActivoError] = useState('')
-
-  const [ocupanteQuery, setOcupanteQuery] = useState('')
-  const [selectedOcupanteId, setSelectedOcupanteId] = useState('')
   const [activeManager, setActiveManager] = useState(null)
 
-  const selectableOcupantes = useMemo(
-    () => ocupantes.filter((item) => !isArchivedRecord(item.notas)),
-    [ocupantes],
-  )
+  const {
+    loading: unidadLoading,
+    error: unidadError,
+    unidad,
+    sitio,
+    cliente,
+  } = useUnidadDetail(clienteId, sitioId, unidadId)
 
-  const visibleOcupantes = useMemo(() => {
-    if (includeArchivedOcupantes) {
-      return ocupantes
-    }
+  const {
+    loading: ocupantesLoading,
+    error: ocupantesError,
+    ocupantes,
+    visibleOcupantes,
+    selectableOcupantes,
+    includeArchived: includeArchivedOcupantes,
+    setIncludeArchived: setIncludeArchivedOcupantes,
+    activeOcupantesCount,
+    reload: reloadOcupantes,
+  } = useOcupantesDeUnidad(unidadId)
 
-    return ocupantes.filter((item) => !isArchivedRecord(item.notas))
-  }, [includeArchivedOcupantes, ocupantes])
+  const {
+    loading: activosLoading,
+    error: activosError,
+    activos,
+    visibleActivos,
+    includeInactive: includeInactiveActivos,
+    setIncludeInactive: setIncludeInactiveActivos,
+    activeActivosCount,
+    reload: reloadActivos,
+  } = useActivosDeUnidad(unidadId)
 
-  const visibleActivos = useMemo(() => {
-    if (includeInactiveActivos) {
-      return activos
-    }
+  const activoForm = useActivoForm({
+    clienteId,
+    sitioId,
+    unidadId,
+    activos,
+    selectableOcupantes,
+    onSaved: reloadActivos,
+  })
 
-    return activos.filter((item) => item.estado !== 'deBaja')
-  }, [activos, includeInactiveActivos])
-
-  const activeOcupantesCount = useMemo(
-    () => ocupantes.filter((item) => !isArchivedRecord(item.notas)).length,
-    [ocupantes],
-  )
-
-  const activeActivosCount = useMemo(
-    () => activos.filter((item) => item.estado !== 'deBaja').length,
-    [activos],
-  )
-
-  const canCreateActivo = activeOcupantesCount > 0
-  const isActivoFormLocked = !editingActivoId && !canCreateActivo
-
-  const filteredOcupantes = useMemo(() => {
-    const query = ocupanteQuery.trim().toLowerCase()
-    if (!query) {
-      return selectableOcupantes
-    }
-    return selectableOcupantes.filter((item) => item.nombre.toLowerCase().includes(query))
-  }, [ocupanteQuery, selectableOcupantes])
-
-  const selectedOcupante = useMemo(
-    () => selectableOcupantes.find((item) => item.id === selectedOcupanteId) ?? null,
-    [selectableOcupantes, selectedOcupanteId],
-  )
-
-  const loadData = useMemo(
-    () =>
-      async function fetchData() {
-        if (!unidadId || !sitioId || !clienteId) {
-          return
-        }
-
-        setLoading(true)
-        setPageError('')
-
-        let unidadData
-
-        try {
-          unidadData = await apiClient.get(`/unidades/${unidadId}`)
-        } catch (requestError) {
-          if (requestError instanceof ApiError && requestError.status === 404) {
-            setPageError('No se encontro la unidad solicitada para este sitio.')
-          } else {
-            const message = requestError instanceof ApiError ? requestError.message : 'No se pudo cargar la unidad'
-            setPageError(message || 'No se pudo cargar la unidad')
-          }
-          setLoading(false)
-          return
-        }
-
-        if (!unidadData || unidadData.sitioId !== sitioId) {
-          setPageError('No se encontro la unidad solicitada para este sitio.')
-          setLoading(false)
-          return
-        }
-
-        let sitioData
-        let clienteData
-        let ocupantesData
-        let activosData
-
-        try {
-          ;[sitioData, clienteData, ocupantesData, activosData] = await Promise.all([
-            apiClient.get(`/sitios/${sitioId}`),
-            apiClient.get(`/clientes/${clienteId}`),
-            apiClient.get(`/ocupantes?unidadId=${unidadId}`),
-            apiClient.get(`/activos?unidadId=${unidadId}`),
-          ])
-        } catch (requestError) {
-          const message =
-            requestError instanceof ApiError ? requestError.message : 'No se pudo cargar la informacion de la unidad'
-          setPageError(message || 'No se pudo cargar la informacion de la unidad')
-          setLoading(false)
-          return
-        }
-
-        if (!sitioData || sitioData.clienteId !== clienteId) {
-          setPageError('No se encontro el sitio asociado a esta unidad.')
-          setLoading(false)
-          return
-        }
-
-        if (!clienteData) {
-          setPageError('No se encontro el cliente asociado a este sitio.')
-          setLoading(false)
-          return
-        }
-
-        setUnidad(unidadData)
-        setSitio(sitioData)
-        setCliente(clienteData)
-        setOcupantes(ocupantesData ?? [])
-        setActivos(activosData ?? [])
-        setLoading(false)
-      },
-    [clienteId, sitioId, unidadId],
-  )
-
-  useEffect(() => {
-    void loadData()
-  }, [loadData])
-
-  const resetOcupanteForm = () => {
-    setShowOcupanteForm(false)
-    setEditingOcupanteId('')
-    setOcupanteForm(initialOcupanteForm)
-    setOcupanteError('')
-  }
-
-  const startCreateOcupante = () => {
-    if (showOcupanteForm && !editingOcupanteId) {
-      resetOcupanteForm()
-      return
-    }
-
-    setShowOcupanteForm(true)
-    setEditingOcupanteId('')
-    setOcupanteForm(initialOcupanteForm)
-    setOcupanteError('')
-  }
-
-  const startEditOcupante = (ocupante) => {
-    setActiveManager('ocupantes')
-    setShowOcupanteForm(true)
-    setEditingOcupanteId(ocupante.id)
-    setOcupanteForm({
-      nombre: ocupante.nombre ?? '',
-      telefono: ocupante.telefono ?? '',
-      email: ocupante.email ?? '',
-      es_titular: Boolean(ocupante.esTitular),
-      notas: removeArchiveFlag(ocupante.notas) ?? '',
-    })
-    setOcupanteError('')
-  }
-
-  const saveOcupante = async (event) => {
-    event.preventDefault()
-    if (!unidadId) {
-      return
-    }
-
-    setOcupanteSaving(true)
-    setOcupanteError('')
-
-    const nombre = ocupanteForm.nombre.trim()
-
-    if (!nombre) {
-      setOcupanteError('El nombre del ocupante es obligatorio.')
-      setOcupanteSaving(false)
-      return
-    }
-
-    const payload = {
-      nombre,
-      telefono: ocupanteForm.telefono.trim() || null,
-      email: ocupanteForm.email.trim() || null,
-      esTitular: ocupanteForm.es_titular,
-      notas: ocupanteForm.notas.trim() || null,
-    }
-
-    let data
-
-    try {
-      data = editingOcupanteId
-        ? await apiClient.put(`/ocupantes/${editingOcupanteId}`, payload)
-        : await apiClient.post('/ocupantes', { ...payload, unidadId })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo guardar el ocupante'
-      setOcupanteError(message || 'No se pudo guardar el ocupante')
-      setOcupanteSaving(false)
-      return
-    }
-
-    resetOcupanteForm()
-    setOcupanteSaving(false)
-
-    await loadData()
-
-    if (data?.id) {
-      setSelectedOcupanteId(data.id)
-      setOcupanteQuery(data.nombre)
-    }
-  }
-
-  const handleBajaOcupante = async (ocupante) => {
-    const confirmed = window.confirm(
-      `Dar de baja al ocupante "${ocupante.nombre}"? Se ocultara de la vista principal.`,
-    )
-
-    if (!confirmed) {
-      return
-    }
-
-    setOcupanteActionLoadingId(ocupante.id)
-
-    try {
-      await apiClient.put(`/ocupantes/${ocupante.id}`, {
-        nombre: ocupante.nombre,
-        telefono: ocupante.telefono,
-        email: ocupante.email,
-        esTitular: ocupante.esTitular,
-        notas: addArchiveFlag(ocupante.notas),
-      })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja el ocupante'
-      setOcupanteError(message || 'No se pudo dar de baja el ocupante')
-      setOcupanteActionLoadingId('')
-      return
-    }
-
-    if (selectedOcupanteId === ocupante.id) {
-      setSelectedOcupanteId('')
-      setOcupanteQuery('')
-    }
-
-    setOcupanteActionLoadingId('')
-    await loadData()
-  }
-
-  const handleRestoreOcupante = async (ocupante) => {
-    setOcupanteActionLoadingId(ocupante.id)
-
-    try {
-      await apiClient.put(`/ocupantes/${ocupante.id}`, {
-        nombre: ocupante.nombre,
-        telefono: ocupante.telefono,
-        email: ocupante.email,
-        esTitular: ocupante.esTitular,
-        notas: removeArchiveFlag(ocupante.notas),
-      })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar el ocupante'
-      setOcupanteError(message || 'No se pudo rehabilitar el ocupante')
-      setOcupanteActionLoadingId('')
-      return
-    }
-
-    setOcupanteActionLoadingId('')
-    await loadData()
-  }
-
-  const resetActivoForm = () => {
-    setEditingActivoId('')
-    setActivoForm(initialActivoForm)
-    setSelectedOcupanteId('')
-    setOcupanteQuery('')
-    setActivoError('')
-  }
-
-  const startEditActivo = (activo) => {
-    setActiveManager('activos')
-    setEditingActivoId(activo.id)
-    setActivoForm({
-      tipo: activo.tipo,
-      marca: activo.marca ?? '',
-      modelo: activo.modelo ?? '',
-      numero_serie: activo.numeroSerie ?? '',
-      fecha_instalacion: activo.fechaInstalacion ?? '',
-      garantia_hasta: activo.garantiaHasta ?? '',
-      notas: activo.notas ?? '',
-    })
-
-    const owner = selectableOcupantes.find((item) => item.id === activo.ocupanteId)
-    if (owner) {
-      setSelectedOcupanteId(owner.id)
-      setOcupanteQuery(owner.nombre)
-    } else {
-      setSelectedOcupanteId('')
-      setOcupanteQuery('')
-    }
-
-    setActivoError('')
-  }
-
-  const saveActivo = async (event) => {
-    event.preventDefault()
-    if (!unidadId || !sitioId || !clienteId) {
-      return
-    }
-
-    setActivoSaving(true)
-    setActivoError('')
-
-    if (!selectedOcupanteId) {
-      setActivoError('Debes seleccionar un ocupante existente de la unidad o crearlo antes de guardar.')
-      setActivoSaving(false)
-      return
-    }
-
-    const activoActual = editingActivoId ? activos.find((item) => item.id === editingActivoId) : null
-
-    const payload = {
-      tipo: activoForm.tipo,
-      marca: activoForm.marca.trim() || null,
-      modelo: activoForm.modelo.trim() || null,
-      numeroSerie: activoForm.numero_serie.trim() || null,
-      fechaInstalacion: activoForm.fecha_instalacion || null,
-      garantiaHasta: activoForm.garantia_hasta || null,
-      notas: activoForm.notas.trim() || null,
-    }
-
-    try {
-      if (editingActivoId) {
-        await apiClient.put(`/activos/${editingActivoId}`, {
-          ...payload,
-          ocupanteId: selectedOcupanteId,
-          estado: activoActual?.estado ?? 'activo',
-        })
-      } else {
-        await apiClient.post('/activos', {
-          ...payload,
-          clienteId,
-          sitioId,
-          unidadId,
-          ocupanteId: selectedOcupanteId,
-        })
+  const ocupanteForm = useOcupanteForm(unidadId, {
+    onSaved: async (data) => {
+      await reloadOcupantes()
+      if (data?.id) {
+        activoForm.pickOcupante(data.id, data.nombre)
       }
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo guardar el activo'
-      setActivoError(message || 'No se pudo guardar el activo')
-      setActivoSaving(false)
-      return
-    }
+    },
+    onArchived: async (ocupante) => {
+      await reloadOcupantes()
+      if (activoForm.selectedOcupanteId === ocupante.id) {
+        activoForm.updateOcupanteQuery('')
+      }
+    },
+  })
 
-    resetActivoForm()
-    setActivoSaving(false)
-    await loadData()
-  }
-
-  const handleBajaActivo = async (activo) => {
-    const confirmed = window.confirm(
-      `Dar de baja el activo "${activo.numeroSerie || activo.tipo}"?`,
-    )
-
-    if (!confirmed) {
-      return
-    }
-
-    setActivoActionLoadingId(activo.id)
-
-    try {
-      await apiClient.put(`/activos/${activo.id}`, {
-        tipo: activo.tipo,
-        ocupanteId: activo.ocupanteId,
-        marca: activo.marca,
-        modelo: activo.modelo,
-        numeroSerie: activo.numeroSerie,
-        fechaInstalacion: activo.fechaInstalacion,
-        garantiaHasta: activo.garantiaHasta,
-        notas: activo.notas,
-        estado: 'deBaja',
-      })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja el activo'
-      setActivoError(message || 'No se pudo dar de baja el activo')
-      setActivoActionLoadingId('')
-      return
-    }
-
-    setActivoActionLoadingId('')
-    await loadData()
-  }
-
-  const handleRestoreActivo = async (activo) => {
-    setActivoActionLoadingId(activo.id)
-
-    try {
-      await apiClient.put(`/activos/${activo.id}`, {
-        tipo: activo.tipo,
-        ocupanteId: activo.ocupanteId,
-        marca: activo.marca,
-        modelo: activo.modelo,
-        numeroSerie: activo.numeroSerie,
-        fechaInstalacion: activo.fechaInstalacion,
-        garantiaHasta: activo.garantiaHasta,
-        notas: activo.notas,
-        estado: 'activo',
-      })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar el activo'
-      setActivoError(message || 'No se pudo rehabilitar el activo')
-      setActivoActionLoadingId('')
-      return
-    }
-
-    setActivoActionLoadingId('')
-    await loadData()
-  }
-
-  const pickOcupante = (id, nombre) => {
-    setSelectedOcupanteId(id)
-    setOcupanteQuery(nombre)
-  }
+  const canCreateActivo = activoForm.canCreateActivo
 
   const goToOcupantesForm = () => {
     setActiveManager('ocupantes')
-    setShowOcupanteForm(true)
-    setEditingOcupanteId('')
-    setOcupanteError('')
+    ocupanteForm.forceOpenCreateForm()
   }
+
+  const startEditOcupante = (item) => {
+    setActiveManager('ocupantes')
+    ocupanteForm.openEditForm(item)
+  }
+
+  const startEditActivo = (item) => {
+    setActiveManager('activos')
+    activoForm.startEditForm(item)
+  }
+
+  const ocupantesColumns = [
+    {
+      key: 'ocupante',
+      header: 'Ocupante',
+      width: 'minmax(140px, 1.2fr)',
+      primary: true,
+      render: (item) => <strong>{item.nombre}</strong>,
+    },
+    {
+      key: 'contacto',
+      header: 'Contacto',
+      width: 'minmax(160px, 1.4fr)',
+      render: (item) => (
+        <>
+          <span>{item.telefono || 'Sin telefono'}</span>
+          <span>{item.email || 'Sin email'}</span>
+        </>
+      ),
+    },
+    {
+      key: 'rol',
+      header: 'Rol',
+      width: 'minmax(90px, 0.7fr)',
+      render: (item) => <span>{item.esTitular ? 'Titular' : 'No titular'}</span>,
+    },
+    {
+      key: 'estado',
+      header: 'Estado',
+      width: 'minmax(110px, 0.8fr)',
+      render: (item) =>
+        isArchivedRecord(item.notas) ? (
+          <span className="warning-chip">Dado de baja</span>
+        ) : (
+          <span className="status-chip ok">Activo</span>
+        ),
+    },
+    {
+      key: 'editar',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
+      actions: true,
+      render: (item) => (
+        <button
+          type="button"
+          className="ghost-btn minimal-btn icon-only-btn"
+          aria-label={`Editar ocupante ${item.nombre}`}
+          title="Editar"
+          onClick={() => startEditOcupante(item)}
+        >
+          <FiEdit2 aria-hidden="true" />
+        </button>
+      ),
+    },
+    {
+      key: 'archivar',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
+      actions: true,
+      render: (item) => {
+        const archived = isArchivedRecord(item.notas)
+        return archived ? (
+          <button
+            type="button"
+            className="ghost-btn minimal-btn icon-only-btn"
+            aria-label={`Rehabilitar ocupante ${item.nombre}`}
+            title="Rehabilitar"
+            disabled={ocupanteForm.actionLoadingId === item.id}
+            onClick={() => void ocupanteForm.handleRestore(item)}
+          >
+            <FiRotateCcw aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="danger-btn minimal-btn icon-only-btn"
+            aria-label={`Dar de baja ocupante ${item.nombre}`}
+            title="Dar de baja"
+            disabled={ocupanteForm.actionLoadingId === item.id}
+            onClick={() => void ocupanteForm.handleBaja(item)}
+          >
+            <FiArchive aria-hidden="true" />
+          </button>
+        )
+      },
+    },
+  ]
+
+  const activosColumns = [
+    {
+      key: 'activo',
+      header: 'Activo',
+      width: 'minmax(140px, 1.2fr)',
+      primary: true,
+      render: (item) => (
+        <>
+          <strong>{item.tipo}</strong>
+          <span>
+            {item.marca || 'Sin marca'} • {item.modelo || 'Sin modelo'}
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'serie',
+      header: 'Serie',
+      width: 'minmax(120px, 1fr)',
+      render: (item) => <span>{item.numeroSerie || 'Sin serie'}</span>,
+    },
+    {
+      key: 'ocupante',
+      header: 'Ocupante',
+      width: 'minmax(120px, 1fr)',
+      render: (item) => {
+        const owner = ocupantes.find((occ) => occ.id === item.ocupanteId)
+        return <span>{owner?.nombre || 'Sin asignar'}</span>
+      },
+    },
+    {
+      key: 'estado',
+      header: 'Estado',
+      width: 'minmax(100px, 0.8fr)',
+      render: (item) =>
+        item.estado === 'deBaja' ? (
+          <span className="warning-chip">De baja</span>
+        ) : (
+          <span className="status-chip ok">Activo</span>
+        ),
+    },
+    {
+      key: 'editar',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
+      actions: true,
+      render: (item) => (
+        <button
+          type="button"
+          className="ghost-btn minimal-btn icon-only-btn"
+          aria-label={`Editar activo ${item.tipo}`}
+          title="Editar"
+          onClick={() => startEditActivo(item)}
+        >
+          <FiEdit2 aria-hidden="true" />
+        </button>
+      ),
+    },
+    {
+      key: 'archivar',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
+      actions: true,
+      render: (item) =>
+        item.estado === 'deBaja' ? (
+          <button
+            type="button"
+            className="ghost-btn minimal-btn icon-only-btn"
+            aria-label={`Rehabilitar activo ${item.tipo}`}
+            title="Rehabilitar"
+            disabled={activoForm.actionLoadingId === item.id}
+            onClick={() => void activoForm.handleRestore(item)}
+          >
+            <FiRotateCcw aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="danger-btn minimal-btn icon-only-btn"
+            aria-label={`Dar de baja activo ${item.tipo}`}
+            title="Dar de baja"
+            disabled={activoForm.actionLoadingId === item.id}
+            onClick={() => void activoForm.handleBaja(item)}
+          >
+            <FiArchive aria-hidden="true" />
+          </button>
+        ),
+    },
+  ]
+
+  const loading = unidadLoading || ocupantesLoading || activosLoading
+  const pageError = unidadError || ocupantesError || activosError
 
   if (loading) {
     return <section className="placeholder-card">Cargando unidad...</section>
@@ -528,6 +304,15 @@ export function UnidadDetailPage() {
 
   return (
     <section className="crud-shell">
+      <Breadcrumb
+        items={[
+          { label: 'Clientes', to: '/panel-admin/clientes' },
+          { label: cliente?.nombre ?? 'Cliente', to: `/panel-admin/clientes/${clienteId}` },
+          { label: sitio?.nombre ?? 'Sitio', to: `/panel-admin/clientes/${clienteId}/sitios/${sitioId}` },
+          { label: unidad?.identificador ?? 'Unidad' },
+        ]}
+      />
+
       <div className="crud-header">
         <div>
           <p className="eyebrow">Unidad</p>
@@ -536,9 +321,6 @@ export function UnidadDetailPage() {
           </h2>
           <p className="muted-text">Cliente: {cliente?.nombre}</p>
         </div>
-        <Link className="ghost-btn" to={`/panel-admin/clientes/${clienteId}/sitios/${sitioId}`}>
-          Volver al sitio
-        </Link>
       </div>
 
       <article className="crud-card entity-overview-grid">
@@ -588,16 +370,28 @@ export function UnidadDetailPage() {
             <p className="muted-text">Elige un modulo para trabajar de forma individual.</p>
           </div>
           <div className="management-options">
-            <button type="button" className="management-option occupants-option" onClick={() => setActiveManager('ocupantes')}>
-              <span className="management-option-icon"><FiUsers aria-hidden="true" /></span>
+            <button
+              type="button"
+              className="management-option occupants-option"
+              onClick={() => setActiveManager('ocupantes')}
+            >
+              <span className="management-option-icon">
+                <FiUsers aria-hidden="true" />
+              </span>
               <span className="management-option-copy">
                 <strong>Gestionar ocupantes</strong>
                 <span>Altas, edicion y bajas de las personas de esta unidad.</span>
               </span>
               <span className="management-option-count">{activeOcupantesCount}</span>
             </button>
-            <button type="button" className="management-option assets-option" onClick={() => setActiveManager('activos')}>
-              <span className="management-option-icon"><FiCpu aria-hidden="true" /></span>
+            <button
+              type="button"
+              className="management-option assets-option"
+              onClick={() => setActiveManager('activos')}
+            >
+              <span className="management-option-icon">
+                <FiCpu aria-hidden="true" />
+              </span>
               <span className="management-option-copy">
                 <strong>Gestionar activos</strong>
                 <span>Inventario y asignacion de equipos a un ocupante.</span>
@@ -615,12 +409,13 @@ export function UnidadDetailPage() {
               <FiUsers aria-hidden="true" />
               Gestion de ocupantes
             </h3>
-            <button
-              type="button"
-              className="primary-btn minimal-btn"
-              onClick={startCreateOcupante}
-            >
-              {showOcupanteForm && !editingOcupanteId ? 'Cancelar' : 'Nuevo ocupante'}
+            <button type="button" className="primary-btn minimal-btn" onClick={ocupanteForm.openCreateForm}>
+              {ocupanteForm.showForm && !ocupanteForm.editingOcupanteId ? (
+                <FiX aria-hidden="true" />
+              ) : (
+                <FiPlus aria-hidden="true" />
+              )}
+              {ocupanteForm.showForm && !ocupanteForm.editingOcupanteId ? 'Cancelar' : 'Nuevo ocupante'}
             </button>
           </div>
 
@@ -650,146 +445,34 @@ export function UnidadDetailPage() {
             />
             Mostrar ocupantes dados de baja
           </label>
-          
-          <div className="mb-4">
-            {showOcupanteForm && (
-              <form className="crud-form" onSubmit={saveOcupante}>
-                <label>
-                  Nombre
-                  <input
-                    value={ocupanteForm.nombre}
-                    onChange={(e) => setOcupanteForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  Telefono
-                  <input
-                    value={ocupanteForm.telefono}
-                    onChange={(e) =>
-                      setOcupanteForm((prev) => ({ ...prev, telefono: e.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={ocupanteForm.email}
-                    onChange={(e) => setOcupanteForm((prev) => ({ ...prev, email: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Titular
-                  <select
-                    value={ocupanteForm.es_titular ? 'si' : 'no'}
-                    onChange={(e) =>
-                      setOcupanteForm((prev) => ({ ...prev, es_titular: e.target.value === 'si' }))
-                    }
-                  >
-                    <option value="si">Si</option>
-                    <option value="no">No</option>
-                  </select>
-                </label>
-                <label className="span-2">
-                  Notas
-                  <textarea
-                    rows={3}
-                    value={ocupanteForm.notas}
-                    onChange={(e) => setOcupanteForm((prev) => ({ ...prev, notas: e.target.value }))}
-                  />
-                </label>
 
-                {ocupanteError ? <p className="form-error span-2">{ocupanteError}</p> : null}
-
-                <div className="form-actions span-2">
-                  <button className="primary-btn minimal-btn" type="submit" disabled={ocupanteSaving}>
-                    {ocupanteSaving
-                      ? 'Guardando...'
-                      : editingOcupanteId
-                        ? 'Guardar cambios'
-                        : 'Guardar ocupante'}
-                  </button>
-                  <button type="button" className="ghost-btn minimal-btn" onClick={resetOcupanteForm}>
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-
-          {visibleOcupantes.length === 0 ? (
-            <p className="muted-text">Aun no hay ocupantes en esta unidad.</p>
-          ) : (
-            <div className="data-grid-shell compact-shell">
-              <div className="data-grid-table occupants-grid" role="table" aria-label="Ocupantes de la unidad">
-                <div className="data-grid-head" role="row">
-                  <span role="columnheader">Ocupante</span>
-                  <span role="columnheader">Contacto</span>
-                  <span role="columnheader">Rol</span>
-                  <span role="columnheader">Estado</span>
-                  <span role="columnheader">Acciones</span>
-                </div>
-              {visibleOcupantes.map((item) => {
-                const archived = isArchivedRecord(item.notas)
-                return (
-                <article className="data-grid-row" role="row" key={item.id}>
-                  <div className="data-grid-cell data-grid-primary" role="cell" data-label="Ocupante">
-                    <strong>{item.nombre}</strong>
-                  </div>
-                  <div className="data-grid-cell" role="cell" data-label="Contacto">
-                    <span>{item.telefono || 'Sin telefono'}</span>
-                    <span>{item.email || 'Sin email'}</span>
-                  </div>
-                  <div className="data-grid-cell" role="cell" data-label="Rol">
-                    <span>{item.esTitular ? 'Titular' : 'No titular'}</span>
-                  </div>
-                  <div className="data-grid-cell" role="cell" data-label="Estado">
-                    {archived ? <span className="warning-chip">Dado de baja</span> : <span className="status-chip ok">Activo</span>}
-                  </div>
-                  <div className="data-grid-cell data-grid-actions" role="cell" data-label="Acciones">
-                    <button type="button" className="ghost-btn minimal-btn" onClick={() => startEditOcupante(item)}>
-                      Editar
-                    </button>
-                    {archived ? (
-                      <button
-                        type="button"
-                        className="ghost-btn minimal-btn"
-                        disabled={ocupanteActionLoadingId === item.id}
-                        onClick={() => void handleRestoreOcupante(item)}
-                      >
-                        Rehabilitar
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="danger-btn minimal-btn"
-                        disabled={ocupanteActionLoadingId === item.id}
-                        onClick={() => void handleBajaOcupante(item)}
-                      >
-                        Dar de baja
-                      </button>
-                    )}
-                  </div>
-                </article>
-                )
-              })}
-              </div>
-            </div>
-          )}
+          <DataGrid
+            ariaLabel="Ocupantes de la unidad"
+            emptyMessage="Aun no hay ocupantes en esta unidad."
+            rows={visibleOcupantes}
+            columns={ocupantesColumns}
+          />
         </article>
       ) : activeManager === 'activos' ? (
         <article className="crud-card card-intent-assets">
           <div className="section-title-row">
             <h3 className="list-title-with-icon">
               <FiCpu aria-hidden="true" />
-              {editingActivoId ? 'Editar activo' : 'Gestion de activos'}
+              Gestion de activos
             </h3>
-            {editingActivoId ? (
-              <button type="button" className="ghost-btn minimal-btn" onClick={resetActivoForm}>
-                Cancelar edicion
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="primary-btn minimal-btn"
+              disabled={activoForm.isFormLocked}
+              onClick={activoForm.openCreateForm}
+            >
+              {activoForm.showForm && !activoForm.editingActivoId ? (
+                <FiX aria-hidden="true" />
+              ) : (
+                <FiPlus aria-hidden="true" />
+              )}
+              {activoForm.showForm && !activoForm.editingActivoId ? 'Cancelar' : 'Nuevo activo'}
+            </button>
           </div>
 
           <p className="muted-text section-help-text">
@@ -797,7 +480,7 @@ export function UnidadDetailPage() {
             Cada activo debe quedar asociado a un ocupante existente de esta unidad.
           </p>
 
-          {isActivoFormLocked ? (
+          {activoForm.isFormLocked ? (
             <div className="step-warning-box" role="status" aria-live="polite">
               <p>
                 <FiLock aria-hidden="true" />
@@ -810,135 +493,6 @@ export function UnidadDetailPage() {
             </div>
           ) : null}
 
-          <form className="crud-form" onSubmit={saveActivo}>
-            <label>
-              Tipo
-              <select
-                value={activoForm.tipo}
-                disabled={isActivoFormLocked}
-                onChange={(e) => setActivoForm((prev) => ({ ...prev, tipo: e.target.value }))}
-              >
-                {TIPOS_ACTIVO.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipo}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Marca
-              <input
-                value={activoForm.marca}
-                disabled={isActivoFormLocked}
-                onChange={(e) => setActivoForm((prev) => ({ ...prev, marca: e.target.value }))}
-              />
-            </label>
-            <label>
-              Modelo
-              <input
-                value={activoForm.modelo}
-                disabled={isActivoFormLocked}
-                onChange={(e) => setActivoForm((prev) => ({ ...prev, modelo: e.target.value }))}
-              />
-            </label>
-            <label>
-              Numero de serie
-              <input
-                value={activoForm.numero_serie}
-                disabled={isActivoFormLocked}
-                onChange={(e) => setActivoForm((prev) => ({ ...prev, numero_serie: e.target.value }))}
-              />
-            </label>
-            <label>
-              Fecha instalacion
-              <input
-                type="date"
-                value={activoForm.fecha_instalacion}
-                disabled={isActivoFormLocked}
-                onChange={(e) =>
-                  setActivoForm((prev) => ({ ...prev, fecha_instalacion: e.target.value }))
-                }
-              />
-            </label>
-            <label>
-              Garantia hasta
-              <input
-                type="date"
-                value={activoForm.garantia_hasta}
-                disabled={isActivoFormLocked}
-                onChange={(e) => setActivoForm((prev) => ({ ...prev, garantia_hasta: e.target.value }))}
-              />
-            </label>
-
-            <div className="span-2 autocomplete-box">
-              <label htmlFor="ocupante-autocomplete">Ocupante responsable (autocomplete de esta unidad)</label>
-              <input
-                id="ocupante-autocomplete"
-                value={ocupanteQuery}
-                disabled={isActivoFormLocked}
-                onChange={(e) => {
-                  setOcupanteQuery(e.target.value)
-                  setSelectedOcupanteId('')
-                }}
-                placeholder="Buscar ocupante existente"
-              />
-              {selectedOcupante ? (
-                <p className="selection-pill">Seleccionado: {selectedOcupante.nombre}</p>
-              ) : (
-                <p className="muted-text">Selecciona un ocupante de la lista para poder guardar el activo.</p>
-              )}
-              <div className="autocomplete-list" role="listbox" aria-label="Ocupantes sugeridos">
-                {filteredOcupantes.slice(0, 8).map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className="autocomplete-option"
-                    disabled={isActivoFormLocked}
-                    onClick={() => pickOcupante(item.id, item.nombre)}
-                  >
-                    {item.nombre}
-                    {item.esTitular ? ' (titular)' : ''}
-                  </button>
-                ))}
-                {filteredOcupantes.length === 0 ? (
-                  <p className="muted-text small">No hay coincidencias. Crea un ocupante nuevo.</p>
-                ) : null}
-              </div>
-              <button type="button" className="ghost-btn minimal-btn" onClick={goToOcupantesForm}>
-                <FiPlusCircle aria-hidden="true" />
-                Crear ocupante nuevo
-              </button>
-            </div>
-
-            <label className="span-2">
-              Notas
-              <textarea
-                rows={3}
-                value={activoForm.notas}
-                disabled={isActivoFormLocked}
-                onChange={(e) => setActivoForm((prev) => ({ ...prev, notas: e.target.value }))}
-              />
-            </label>
-
-            {activoError ? <p className="form-error span-2">{activoError}</p> : null}
-
-            <div className="form-actions span-2">
-              <button className="primary-btn minimal-btn" type="submit" disabled={activoSaving || isActivoFormLocked}>
-                {activoSaving
-                  ? 'Guardando...'
-                  : editingActivoId
-                    ? 'Guardar cambios'
-                    : 'Guardar activo'}
-              </button>
-            </div>
-          </form>
-
-          <hr className="divider" />
-
-          <h3 className="list-title-with-icon">
-            <FiHome aria-hidden="true" />
-            Activos de la unidad
-          </h3>
           <label className="inline-check">
             <input
               type="checkbox"
@@ -948,71 +502,183 @@ export function UnidadDetailPage() {
             Mostrar activos dados de baja
           </label>
 
-          {visibleActivos.length === 0 ? (
-            <p className="muted-text">Aun no hay activos cargados en esta unidad.</p>
-          ) : (
-            <div className="data-grid-shell compact-shell">
-              <div className="data-grid-table assets-grid" role="table" aria-label="Activos de la unidad">
-                <div className="data-grid-head" role="row">
-                  <span role="columnheader">Activo</span>
-                  <span role="columnheader">Serie</span>
-                  <span role="columnheader">Ocupante</span>
-                  <span role="columnheader">Estado</span>
-                  <span role="columnheader">Acciones</span>
-                </div>
-              {visibleActivos.map((item) => {
-                const owner = ocupantes.find((occ) => occ.id === item.ocupanteId)
-                return (
-                  <article className="data-grid-row" role="row" key={item.id}>
-                    <div className="data-grid-cell data-grid-primary" role="cell" data-label="Activo">
-                      <strong>{item.tipo}</strong>
-                      <span>{(item.marca || 'Sin marca')} • {(item.modelo || 'Sin modelo')}</span>
-                    </div>
-                    <div className="data-grid-cell" role="cell" data-label="Serie">
-                      <span>{item.numeroSerie || 'Sin serie'}</span>
-                    </div>
-                    <div className="data-grid-cell" role="cell" data-label="Ocupante">
-                      <span>{owner?.nombre || 'Sin asignar'}</span>
-                    </div>
-                    <div className="data-grid-cell" role="cell" data-label="Estado">
-                      {item.estado === 'deBaja' ? (
-                        <span className="warning-chip">De baja</span>
-                      ) : (
-                        <span className="status-chip ok">Activo</span>
-                      )}
-                    </div>
-                    <div className="data-grid-cell data-grid-actions" role="cell" data-label="Acciones">
-                      <button type="button" className="ghost-btn minimal-btn" onClick={() => startEditActivo(item)}>
-                        Editar
-                      </button>
-                      {item.estado === 'deBaja' ? (
-                        <button
-                          type="button"
-                          className="ghost-btn minimal-btn"
-                          disabled={activoActionLoadingId === item.id}
-                          onClick={() => void handleRestoreActivo(item)}
-                        >
-                          Rehabilitar
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="danger-btn minimal-btn"
-                          disabled={activoActionLoadingId === item.id}
-                          onClick={() => void handleBajaActivo(item)}
-                        >
-                          Dar de baja
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                )
-              })}
-              </div>
-            </div>
-          )}
+          <DataGrid
+            ariaLabel="Activos de la unidad"
+            emptyMessage="Aun no hay activos cargados en esta unidad."
+            rows={visibleActivos}
+            columns={activosColumns}
+          />
         </article>
       ) : null}
+
+      <Modal
+        open={ocupanteForm.showForm}
+        title={ocupanteForm.editingOcupanteId ? 'Editar ocupante' : 'Alta de ocupante'}
+        onClose={ocupanteForm.closeForm}
+      >
+        <form className="crud-form" onSubmit={ocupanteForm.handleSave}>
+          <label>
+            Nombre
+            <input
+              value={ocupanteForm.form.nombre}
+              onChange={(e) => ocupanteForm.updateField('nombre', e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Telefono
+            <input
+              value={ocupanteForm.form.telefono}
+              onChange={(e) => ocupanteForm.updateField('telefono', e.target.value)}
+            />
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              value={ocupanteForm.form.email}
+              onChange={(e) => ocupanteForm.updateField('email', e.target.value)}
+            />
+          </label>
+          <label>
+            Titular
+            <select
+              value={ocupanteForm.form.es_titular ? 'si' : 'no'}
+              onChange={(e) => ocupanteForm.updateField('es_titular', e.target.value === 'si')}
+            >
+              <option value="si">Si</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+          <label className="span-2">
+            Notas
+            <textarea
+              rows={3}
+              value={ocupanteForm.form.notas}
+              onChange={(e) => ocupanteForm.updateField('notas', e.target.value)}
+            />
+          </label>
+
+          {ocupanteForm.formError ? <p className="form-error span-2">{ocupanteForm.formError}</p> : null}
+
+          <div className="form-actions span-2">
+            <button className="primary-btn minimal-btn" type="submit" disabled={ocupanteForm.saving}>
+              <FiSave aria-hidden="true" />
+              {ocupanteForm.saving
+                ? 'Guardando...'
+                : ocupanteForm.editingOcupanteId
+                  ? 'Guardar cambios'
+                  : 'Guardar ocupante'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={activoForm.showForm}
+        title={activoForm.editingActivoId ? 'Editar activo' : 'Alta de activo'}
+        onClose={activoForm.closeForm}
+      >
+        <form className="crud-form" onSubmit={activoForm.handleSave}>
+          <label>
+            Tipo
+            <select value={activoForm.form.tipo} onChange={(e) => activoForm.updateField('tipo', e.target.value)}>
+              {TIPOS_ACTIVO.map((tipo) => (
+                <option key={tipo} value={tipo}>
+                  {tipo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Marca
+            <input value={activoForm.form.marca} onChange={(e) => activoForm.updateField('marca', e.target.value)} />
+          </label>
+          <label>
+            Modelo
+            <input
+              value={activoForm.form.modelo}
+              onChange={(e) => activoForm.updateField('modelo', e.target.value)}
+            />
+          </label>
+          <label>
+            Numero de serie
+            <input
+              value={activoForm.form.numero_serie}
+              onChange={(e) => activoForm.updateField('numero_serie', e.target.value)}
+            />
+          </label>
+          <label>
+            Fecha instalacion
+            <input
+              type="date"
+              value={activoForm.form.fecha_instalacion}
+              onChange={(e) => activoForm.updateField('fecha_instalacion', e.target.value)}
+            />
+          </label>
+          <label>
+            Garantia hasta
+            <input
+              type="date"
+              value={activoForm.form.garantia_hasta}
+              onChange={(e) => activoForm.updateField('garantia_hasta', e.target.value)}
+            />
+          </label>
+
+          <div className="span-2 autocomplete-box">
+            <label htmlFor="ocupante-autocomplete">Ocupante responsable (autocomplete de esta unidad)</label>
+            <input
+              id="ocupante-autocomplete"
+              value={activoForm.ocupanteQuery}
+              onChange={(e) => activoForm.updateOcupanteQuery(e.target.value)}
+              placeholder="Buscar ocupante existente"
+            />
+            {activoForm.selectedOcupante ? (
+              <p className="selection-pill">Seleccionado: {activoForm.selectedOcupante.nombre}</p>
+            ) : (
+              <p className="muted-text">Selecciona un ocupante de la lista para poder guardar el activo.</p>
+            )}
+            <div className="autocomplete-list" role="listbox" aria-label="Ocupantes sugeridos">
+              {activoForm.filteredOcupantes.slice(0, 8).map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className="autocomplete-option"
+                  onClick={() => activoForm.pickOcupante(item.id, item.nombre)}
+                >
+                  {item.nombre}
+                  {item.esTitular ? ' (titular)' : ''}
+                </button>
+              ))}
+              {activoForm.filteredOcupantes.length === 0 ? (
+                <p className="muted-text small">No hay coincidencias. Crea un ocupante nuevo.</p>
+              ) : null}
+            </div>
+            <button type="button" className="ghost-btn minimal-btn" onClick={goToOcupantesForm}>
+              <FiPlusCircle aria-hidden="true" />
+              Crear ocupante nuevo
+            </button>
+          </div>
+
+          <label className="span-2">
+            Notas
+            <textarea
+              rows={3}
+              value={activoForm.form.notas}
+              onChange={(e) => activoForm.updateField('notas', e.target.value)}
+            />
+          </label>
+
+          {activoForm.formError ? <p className="form-error span-2">{activoForm.formError}</p> : null}
+
+          <div className="form-actions span-2">
+            <button className="primary-btn minimal-btn" type="submit" disabled={activoForm.saving}>
+              <FiSave aria-hidden="true" />
+              {activoForm.saving ? 'Guardando...' : activoForm.editingActivoId ? 'Guardar cambios' : 'Guardar activo'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </section>
   )
 }

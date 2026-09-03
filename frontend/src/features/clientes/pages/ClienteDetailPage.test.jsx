@@ -79,7 +79,7 @@ describe('ClienteDetailPage', () => {
     await screen.findByText('Edificio Central')
 
     expect(screen.getByRole('heading', { name: 'Consorcio Colon' })).toBeInTheDocument()
-    expect(screen.getByText('empresa')).toBeInTheDocument()
+    expect(screen.getByText('Empresa')).toBeInTheDocument()
   })
 
   it('da de alta un sitio nuevo vía el modal, enviando el clienteId en el payload', async () => {

@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   FiArchive,
-  FiArrowLeft,
   FiCheckCircle,
   FiEdit2,
   FiEye,
@@ -12,293 +10,54 @@ import {
   FiPlus,
   FiRotateCcw,
   FiSave,
+  FiSearch,
   FiX,
   FiXCircle,
 } from 'react-icons/fi'
-import { apiClient, ApiError } from '../../../lib/apiClient'
 import { Modal } from '../../../components/ui/Modal'
 import { DataGrid } from '../../../components/ui/DataGrid'
+import { Breadcrumb } from '../../../components/ui/Breadcrumb'
+import { useSitiosDeCliente } from '../hooks/useSitiosDeCliente'
+import { useSitioForm } from '../hooks/useSitioForm'
+import { isArchivedRecord } from '../utils/archiveFlag'
+import { capitalize } from '../constants'
 
-const SITIO_TIPOS = ['edificio', 'casa', 'oficina', 'comercio', 'otro']
-
-const initialSitioForm = {
-  nombre: '',
-  tipo: 'edificio',
-  direccion: '',
-  ciudad: '',
-  notas: '',
-}
-
-const ARCHIVE_FLAG = '[BAJA_LOGICA]'
-
-function isArchivedRecord(notas) {
-  return typeof notas === 'string' && notas.includes(ARCHIVE_FLAG)
-}
-
-function addArchiveFlag(notas) {
-  if (isArchivedRecord(notas)) {
-    return notas
-  }
-  return notas ? `${notas}\n${ARCHIVE_FLAG}` : ARCHIVE_FLAG
-}
-
-function removeArchiveFlag(notas) {
-  if (!notas) {
-    return null
-  }
-
-  const cleaned = notas
-    .replace(ARCHIVE_FLAG, '')
-    .replace(/\n{2,}/g, '\n')
-    .trim()
-
-  return cleaned || null
-}
+const SITIO_TIPOS = ['Edificio', 'Casa', 'Oficina', 'Comercio', 'Otro']
 
 export function ClienteDetailPage() {
   const { clienteId } = useParams()
 
-  const [loading, setLoading] = useState(true)
-  const [pageError, setPageError] = useState('')
-  const [cliente, setCliente] = useState(null)
-  const [sitios, setSitios] = useState([])
-  const [sitioUnidadCountMap, setSitioUnidadCountMap] = useState({})
+  const {
+    loading,
+    error: pageError,
+    cliente,
+    sitios: visibleSitios,
+    includeArchived,
+    setIncludeArchived,
+    search,
+    setSearch,
+    sitioUnidadCountMap,
+    activeSitiosCount,
+    sitiosWithUnidadesCount,
+    totalUnidadesCount,
+    reload,
+  } = useSitiosDeCliente(clienteId)
 
-  const [showCreateSitio, setShowCreateSitio] = useState(false)
-  const [editingSitioId, setEditingSitioId] = useState('')
-  const [includeArchived, setIncludeArchived] = useState(false)
-  const [sitioForm, setSitioForm] = useState(initialSitioForm)
-  const [sitioSaving, setSitioSaving] = useState(false)
-  const [sitioActionLoadingId, setSitioActionLoadingId] = useState('')
-  const [sitioError, setSitioError] = useState('')
-
-  const visibleSitios = useMemo(() => {
-    if (includeArchived) {
-      return sitios
-    }
-
-    return sitios.filter((item) => !isArchivedRecord(item.notas))
-  }, [includeArchived, sitios])
-
-  const activeSitiosCount = useMemo(
-    () => sitios.filter((item) => !isArchivedRecord(item.notas)).length,
-    [sitios],
-  )
-
-  const sitiosWithUnidadesCount = useMemo(
-    () => Object.values(sitioUnidadCountMap).filter((count) => count > 0).length,
-    [sitioUnidadCountMap],
-  )
-
-  const totalUnidadesCount = useMemo(
-    () => Object.values(sitioUnidadCountMap).reduce((acc, count) => acc + count, 0),
-    [sitioUnidadCountMap],
-  )
-
-  const loadData = useMemo(
-    () =>
-      async function fetchData() {
-        if (!clienteId) {
-          return
-        }
-
-        setLoading(true)
-        setPageError('')
-
-        let clienteData
-        let sitioRows
-
-        try {
-          ;[clienteData, sitioRows] = await Promise.all([
-            apiClient.get(`/clientes/${clienteId}`),
-            apiClient.get(`/sitios?clienteId=${clienteId}`),
-          ])
-        } catch (requestError) {
-          if (requestError instanceof ApiError && requestError.status === 404) {
-            setPageError('No se encontro el cliente solicitado.')
-          } else {
-            const message = requestError instanceof ApiError ? requestError.message : 'No se pudo cargar el cliente'
-            setPageError(message || 'No se pudo cargar el cliente')
-          }
-          setCliente(null)
-          setSitios([])
-          setSitioUnidadCountMap({})
-          setLoading(false)
-          return
-        }
-
-        sitioRows = sitioRows ?? []
-        const activeSitioIds = sitioRows
-          .filter((item) => !isArchivedRecord(item.notas))
-          .map((item) => item.id)
-
-        let unidadCountMap = {}
-
-        if (activeSitioIds.length > 0) {
-          try {
-            const unidadesPorSitio = await Promise.all(
-              activeSitioIds.map((sitioId) => apiClient.get(`/unidades?sitioId=${sitioId}`)),
-            )
-
-            unidadCountMap = unidadesPorSitio.flat().reduce((acc, unidad) => {
-              if (isArchivedRecord(unidad.notas)) {
-                return acc
-              }
-
-              acc[unidad.sitioId] = (acc[unidad.sitioId] ?? 0) + 1
-              return acc
-            }, {})
-          } catch (requestError) {
-            const message =
-              requestError instanceof ApiError ? requestError.message : 'No se pudo validar el estado de unidades'
-            setPageError(message || 'No se pudo validar el estado de unidades')
-            setCliente(clienteData)
-            setSitios(sitioRows)
-            setSitioUnidadCountMap({})
-            setLoading(false)
-            return
-          }
-        }
-
-        setCliente(clienteData)
-        setSitios(sitioRows)
-        setSitioUnidadCountMap(unidadCountMap)
-        setLoading(false)
-      },
-    [clienteId],
-  )
-
-  useEffect(() => {
-    void loadData()
-  }, [loadData])
-
-  const resetSitioForm = () => {
-    setShowCreateSitio(false)
-    setEditingSitioId('')
-    setSitioForm(initialSitioForm)
-    setSitioError('')
-  }
-
-  const startCreateSitio = () => {
-    if (showCreateSitio && !editingSitioId) {
-      resetSitioForm()
-      return
-    }
-
-    setShowCreateSitio(true)
-    setEditingSitioId('')
-    setSitioForm(initialSitioForm)
-    setSitioError('')
-  }
-
-  const startEditSitio = (sitio) => {
-    setShowCreateSitio(true)
-    setEditingSitioId(sitio.id)
-    setSitioForm({
-      nombre: sitio.nombre ?? '',
-      tipo: sitio.tipo ?? 'edificio',
-      direccion: sitio.direccion ?? '',
-      ciudad: sitio.ciudad ?? '',
-      notas: removeArchiveFlag(sitio.notas) ?? '',
-    })
-    setSitioError('')
-  }
-
-  const handleSaveSitio = async (event) => {
-    event.preventDefault()
-    if (!clienteId) {
-      return
-    }
-
-    setSitioSaving(true)
-    setSitioError('')
-
-    const nombre = sitioForm.nombre.trim()
-    const direccion = sitioForm.direccion.trim()
-
-    if (!nombre || !direccion) {
-      setSitioError('Nombre y direccion son obligatorios.')
-      setSitioSaving(false)
-      return
-    }
-
-    const basePayload = {
-      nombre,
-      tipo: sitioForm.tipo,
-      direccion,
-      ciudad: sitioForm.ciudad.trim() || null,
-      notas: sitioForm.notas.trim() || null,
-    }
-
-    try {
-      if (editingSitioId) {
-        await apiClient.put(`/sitios/${editingSitioId}`, basePayload)
-      } else {
-        await apiClient.post('/sitios', { ...basePayload, clienteId })
-      }
-    } catch (saveError) {
-      const message = saveError instanceof ApiError ? saveError.message : 'No se pudo guardar el sitio'
-      setSitioError(message || 'No se pudo guardar el sitio')
-      setSitioSaving(false)
-      return
-    }
-
-    resetSitioForm()
-    setSitioSaving(false)
-    await loadData()
-  }
-
-  const handleBajaSitio = async (sitio) => {
-    const confirmed = window.confirm(
-      `Dar de baja el sitio "${sitio.nombre}"? Se ocultara de la vista principal.`,
-    )
-
-    if (!confirmed) {
-      return
-    }
-
-    setSitioActionLoadingId(sitio.id)
-
-    try {
-      await apiClient.put(`/sitios/${sitio.id}`, {
-        nombre: sitio.nombre,
-        tipo: sitio.tipo,
-        direccion: sitio.direccion,
-        ciudad: sitio.ciudad,
-        notas: addArchiveFlag(sitio.notas),
-      })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo dar de baja el sitio'
-      setSitioError(message || 'No se pudo dar de baja el sitio')
-      setSitioActionLoadingId('')
-      return
-    }
-
-    setSitioActionLoadingId('')
-    await loadData()
-  }
-
-  const handleRestoreSitio = async (sitio) => {
-    setSitioActionLoadingId(sitio.id)
-
-    try {
-      await apiClient.put(`/sitios/${sitio.id}`, {
-        nombre: sitio.nombre,
-        tipo: sitio.tipo,
-        direccion: sitio.direccion,
-        ciudad: sitio.ciudad,
-        notas: removeArchiveFlag(sitio.notas),
-      })
-    } catch (requestError) {
-      const message = requestError instanceof ApiError ? requestError.message : 'No se pudo rehabilitar el sitio'
-      setSitioError(message || 'No se pudo rehabilitar el sitio')
-      setSitioActionLoadingId('')
-      return
-    }
-
-    setSitioActionLoadingId('')
-    await loadData()
-  }
+  const {
+    showForm: showCreateSitio,
+    editingSitioId,
+    saving: sitioSaving,
+    actionLoadingId: sitioActionLoadingId,
+    formError: sitioError,
+    form: sitioForm,
+    updateField: updateSitioField,
+    openCreateForm: startCreateSitio,
+    openEditForm: startEditSitio,
+    closeForm: resetSitioForm,
+    handleSave: handleSaveSitio,
+    handleBaja: handleBajaSitio,
+    handleRestore: handleRestoreSitio,
+  } = useSitioForm(clienteId, { onSaved: reload })
 
   const sitiosColumns = [
     {
@@ -313,7 +72,7 @@ export function ClienteDetailPage() {
             {sitio.nombre}
           </strong>
           <span className="unit-notes">
-            {sitio.tipo} • {sitio.direccion}
+            {capitalize(sitio.tipo)} • {sitio.direccion}
             {sitio.ciudad ? ` • ${sitio.ciudad}` : ''}
           </span>
         </>
@@ -345,46 +104,72 @@ export function ClienteDetailPage() {
         ),
     },
     {
-      key: 'gestionar',
-      header: 'Gestionar',
-      width: 'minmax(180px, 1fr)',
+      key: 'editar',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
+      actions: true,
+      render: (sitio) => (
+        <button
+          type="button"
+          className="ghost-btn minimal-btn icon-only-btn"
+          aria-label={`Editar sitio ${sitio.nombre}`}
+          title="Editar"
+          onClick={() => startEditSitio(sitio)}
+        >
+          <FiEdit2 aria-hidden="true" />
+        </button>
+      ),
+    },
+    {
+      key: 'archivar',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
       actions: true,
       render: (sitio) => {
         const archived = isArchivedRecord(sitio.notas)
-        return (
-          <>
-            <button type="button" className="ghost-btn minimal-btn" onClick={() => startEditSitio(sitio)}>
-              <FiEdit2 aria-hidden="true" />
-              Editar
-            </button>
-            {archived ? (
-              <button
-                type="button"
-                className="ghost-btn minimal-btn"
-                disabled={sitioActionLoadingId === sitio.id}
-                onClick={() => void handleRestoreSitio(sitio)}
-              >
-                <FiRotateCcw aria-hidden="true" />
-                Rehabilitar
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="danger-btn minimal-btn"
-                disabled={sitioActionLoadingId === sitio.id}
-                onClick={() => void handleBajaSitio(sitio)}
-              >
-                <FiArchive aria-hidden="true" />
-                Dar de baja
-              </button>
-            )}
-            <Link className="ghost-btn minimal-btn" to={`/panel-admin/clientes/${clienteId}/sitios/${sitio.id}`}>
-              <FiEye aria-hidden="true" />
-              Ver detalle
-            </Link>
-          </>
+        return archived ? (
+          <button
+            type="button"
+            className="ghost-btn minimal-btn icon-only-btn"
+            aria-label={`Rehabilitar sitio ${sitio.nombre}`}
+            title="Rehabilitar"
+            disabled={sitioActionLoadingId === sitio.id}
+            onClick={() => void handleRestoreSitio(sitio)}
+          >
+            <FiRotateCcw aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="danger-btn minimal-btn icon-only-btn"
+            aria-label={`Dar de baja sitio ${sitio.nombre}`}
+            title="Dar de baja"
+            disabled={sitioActionLoadingId === sitio.id}
+            onClick={() => void handleBajaSitio(sitio)}
+          >
+            <FiArchive aria-hidden="true" />
+          </button>
         )
       },
+    },
+    {
+      key: 'detalle',
+      header: '',
+      width: '4.6rem',
+      align: 'center',
+      actions: true,
+      render: (sitio) => (
+        <Link
+          className="primary-btn minimal-btn icon-only-btn"
+          aria-label={`Ver detalle de ${sitio.nombre}`}
+          title="Ver detalle"
+          to={`/panel-admin/clientes/${clienteId}/sitios/${sitio.id}`}
+        >
+          <FiEye aria-hidden="true" />
+        </Link>
+      ),
     },
   ]
 
@@ -403,18 +188,21 @@ export function ClienteDetailPage() {
 
   return (
     <section className="crud-shell page-fade-in">
+      <Breadcrumb
+        items={[
+          { label: 'Clientes', to: '/panel-admin/clientes' },
+          { label: cliente?.nombre ?? 'Cliente' },
+        ]}
+      />
+
       <div className="crud-header">
         <div>
           <p className="eyebrow">Cliente</p>
           <h2>{cliente?.nombre}</h2>
           <p className="muted-text">
-            Tipo: <strong>{cliente?.tipo}</strong> {cliente?.email ? `• ${cliente.email}` : ''}
+            Tipo: <strong>{capitalize(cliente?.tipo)}</strong> {cliente?.email ? `• ${cliente.email}` : ''}
           </p>
         </div>
-        <Link className="ghost-btn" to="/panel-admin/clientes">
-          <FiArrowLeft aria-hidden="true" />
-          Volver a clientes
-        </Link>
       </div>
 
       <article className="crud-card entity-overview-grid">
@@ -456,6 +244,32 @@ export function ClienteDetailPage() {
           </button>
         </div>
 
+        <div className="toolbar-row">
+          <div className="search-field">
+            <label className="visually-hidden" htmlFor="sitio-search-input">
+              Buscar por nombre o dirección
+            </label>
+            <FiSearch className="search-field-icon" aria-hidden="true" />
+            <input
+              id="sitio-search-input"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nombre o dirección..."
+            />
+            {search ? (
+              <button
+                type="button"
+                className="search-field-clear"
+                aria-label="Limpiar búsqueda"
+                onClick={() => setSearch('')}
+              >
+                <FiX aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
         <label className="inline-check">
           <input
             type="checkbox"
@@ -467,7 +281,11 @@ export function ClienteDetailPage() {
 
         <DataGrid
           ariaLabel="Sitios del cliente"
-          emptyMessage="Este cliente todavia no tiene sitios registrados."
+          emptyMessage={
+            search
+              ? 'Ningun sitio coincide con la busqueda.'
+              : 'Este cliente todavia no tiene sitios registrados.'
+          }
           rows={visibleSitios}
           columns={sitiosColumns}
         />
@@ -483,16 +301,13 @@ export function ClienteDetailPage() {
             Nombre
             <input
               value={sitioForm.nombre}
-              onChange={(e) => setSitioForm((prev) => ({ ...prev, nombre: e.target.value }))}
+              onChange={(e) => updateSitioField('nombre', e.target.value)}
               required
             />
           </label>
           <label>
             Tipo
-            <select
-              value={sitioForm.tipo}
-              onChange={(e) => setSitioForm((prev) => ({ ...prev, tipo: e.target.value }))}
-            >
+            <select value={sitioForm.tipo} onChange={(e) => updateSitioField('tipo', e.target.value)}>
               {SITIO_TIPOS.map((tipo) => (
                 <option key={tipo} value={tipo}>
                   {tipo}
@@ -501,26 +316,23 @@ export function ClienteDetailPage() {
             </select>
           </label>
           <label>
-            Direccion
+            Dirección
             <input
               value={sitioForm.direccion}
-              onChange={(e) => setSitioForm((prev) => ({ ...prev, direccion: e.target.value }))}
+              onChange={(e) => updateSitioField('direccion', e.target.value)}
               required
             />
           </label>
           <label>
             Ciudad
-            <input
-              value={sitioForm.ciudad}
-              onChange={(e) => setSitioForm((prev) => ({ ...prev, ciudad: e.target.value }))}
-            />
+            <input value={sitioForm.ciudad} onChange={(e) => updateSitioField('ciudad', e.target.value)} />
           </label>
           <label className="span-2">
             Notas
             <textarea
               rows={3}
               value={sitioForm.notas}
-              onChange={(e) => setSitioForm((prev) => ({ ...prev, notas: e.target.value }))}
+              onChange={(e) => updateSitioField('notas', e.target.value)}
             />
           </label>
 
