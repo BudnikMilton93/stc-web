@@ -37,11 +37,36 @@ Para pararlo: `supabase stop`. Para recrearlo desde cero (reaplica todas las mig
 
 Podés confirmar que está corriendo con `supabase status` (falla con un error de "no such container" si no está levantado — en ese caso, `supabase start`).
 
-## Switchear la API entre local y remoto
+## Switchear entre local y remoto (automatizado)
 
-La API decide contra qué base conectarse por un único valor: `ConnectionStrings:StcDatabase`, configurado vía `dotnet user-secrets` (nunca en `appsettings.json` commiteado, ver CLAUDE.md). Cambiarlo y reiniciar la API es todo lo que hace falta.
+`scripts/switch-env.sh` cambia de una sola vez los dos switches que importan — `frontend/.env` (login) y `dotnet user-secrets` (API) — para no tener que acordarse de sincronizarlos a mano cada vez (ver más abajo el problema que resuelve esto).
 
-### Ver la conexión actual
+```bash
+scripts/switch-env.sh local     # apunta login + API al Docker local (levanta supabase start si hace falta)
+scripts/switch-env.sh remote    # apunta login + API al proyecto remoto
+```
+
+**`remote` necesita `scripts/remote.env`**, un archivo con las credenciales del proyecto remoto que **no se commitea** (está en `.gitignore`). La primera vez que se corre `scripts/switch-env.sh remote`, el script lo crea con placeholders vacíos y sale pidiendo completarlo:
+
+```
+SUPABASE_URL=          # Project Settings > API
+SUPABASE_ANON_KEY=     # Project Settings > API
+DB_HOST=               # Project Settings > Database > Connection string > Session pooler
+DB_PROJECT_REF=        # el project-ref del proyecto (ver supabase projects list)
+DB_PASSWORD=           # la password de la base
+```
+
+Se completa una vez (los valores salen del dashboard de Supabase del proyecto correspondiente) y se reutiliza en cada `switch-env.sh remote` siguiente. Si la cuenta tiene más de un proyecto Supabase, confirmar el `DB_PROJECT_REF` correcto con `supabase projects list` antes de completarlo — apuntar al proyecto equivocado conecta todo a una base que no corresponde.
+
+En los dos modos, **el script no reinicia nada por vos** — al terminar hay que reiniciar `dotnet run` (API) y, si estaba corriendo, `npm run dev` (frontend), por el mismo motivo que se explica más abajo (Npgsql cachea el catálogo de tipos al arrancar).
+
+### Qué hace por dentro / cómo switchear a mano
+
+Lo siguiente es lo que hace el script automáticamente. Sirve para entender qué toca, para debuggear si algo no cuadra, o para switchear a mano si por algún motivo no se puede correr el script.
+
+La API decide contra qué base conectarse por un único valor: `ConnectionStrings:StcDatabase`, configurado vía `dotnet user-secrets` (nunca en `appsettings.json` commiteado, ver CLAUDE.md). Cambiarlo y reiniciar la API es todo lo que hace falta de ese lado.
+
+#### Ver la conexión actual
 
 ```bash
 cd api/src/Stc.Api && dotnet user-secrets list
@@ -51,7 +76,7 @@ Mirá el `Host`:
 - Si es `127.0.0.1` (con `Port=54322`) → apunta al Docker local.
 - Si es `aws-...pooler.supabase.com` (o `db.<project-ref>.supabase.co`) → apunta al remoto.
 
-### Switchear a local
+#### Switchear a local
 
 ```bash
 cd api/src/Stc.Api
@@ -60,7 +85,7 @@ dotnet user-secrets set "ConnectionStrings:StcDatabase" "Host=127.0.0.1;Port=543
 
 (`Password=postgres` acá es literal — es la credencial fija de desarrollo local, la misma en cualquier instalación de Supabase CLI, no un secreto real.)
 
-### Switchear a remoto
+#### Switchear a remoto
 
 ```bash
 cd api/src/Stc.Api
@@ -71,7 +96,7 @@ El host del pooler en modo sesión, el `<project-ref>` y el password reales se c
 
 Si la cuenta de Supabase tiene más de un proyecto, confirmar el `project-ref` correcto con `supabase projects list` antes de copiar la connection string — usar la de un proyecto equivocado conecta la API a una base que no corresponde.
 
-### Después de cambiar: reiniciar la API
+#### Después de cambiar: reiniciar la API
 
 Frenar el `dotnet run` que esté corriendo y levantarlo de nuevo:
 
@@ -92,7 +117,7 @@ dotnet run --project .
 **Remoto:**
 - Cualquier alta/edición/borrado que se haga probando manualmente (por ejemplo, dar de alta un cliente de prueba para verificar un flujo) queda ahí de verdad — no se limpia solo. Si se prueba algo, conviene borrar los datos de prueba después, o dejar explícito que son de prueba (por ejemplo con un nombre reconocible) para no confundirlos más adelante con datos reales.
 - `POST /leads` es público y sin autenticación (ver [02-Backend-API.md](02-Backend-API.md)) — si la API está conectada a remoto, un lead cargado desde la landing pública en producción llega a la base real, no a la local.
-- No hay ambiente de staging separado (ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md), ítem 9) — remoto **es** la única base real que existe hoy, así que conviene tratarlo con el mismo cuidado que a producción aunque todavía no esté "en vivo" cara al público.
+- No hay ambiente de staging separado (ver [../roadmaps/00-fortalecimiento.md](../roadmaps/00-fortalecimiento.md), ítem 9) — remoto **es** la única base real que existe hoy, así que conviene tratarlo con el mismo cuidado que a producción aunque todavía no esté "en vivo" cara al público.
 - Antes de aplicar una migración nueva acá, seguir el flujo completo de [04-Migraciones.md](04-Migraciones.md) (validar en local primero, backup, revisar si es destructiva).
 
 ## El login (Supabase Auth) es un tercer switch independiente
@@ -117,10 +142,10 @@ Para evitar esta confusión, chequear ambos switches juntos cuando algo de auth 
 
 ### Para loguear contra Docker local de punta a punta
 
-Hace falta cambiar los **tres** puntos a la vez, no solo la API:
+`scripts/switch-env.sh local` ya resuelve los primeros dos puntos de una sola vez. Sigue haciendo falta el tercero:
 
-1. `frontend/.env`: `VITE_SUPABASE_URL=http://127.0.0.1:54321` y `VITE_SUPABASE_ANON_KEY=<ANON_KEY que imprime supabase start>`.
-2. La API (`dotnet user-secrets`) apuntando también a Docker local (ver sección de arriba).
+1. `frontend/.env` apuntando a Docker local — lo hace `scripts/switch-env.sh local`.
+2. La API (`dotnet user-secrets`) apuntando también a Docker local — lo hace `scripts/switch-env.sh local`.
 3. Un usuario real en esa base local — en Supabase Auth local **y** su fila correspondiente en `usuarios`. El seed (`supabase/seed.sql`) puede traer uno de prueba; si no alcanza, `frontend/e2e/global-setup.ts` muestra cómo crear uno mediante la API admin de Supabase Auth local, ya que es exactamente lo que hace para poder correr el E2E de Playwright sin depender de un usuario cargado a mano.
 
 ## Errores comunes al confundir el ambiente

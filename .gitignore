@@ -1,1 +1,4 @@
 .claude/
+
+# Credenciales del proyecto Supabase remoto para scripts/switch-env.sh
+scripts/remote.env
