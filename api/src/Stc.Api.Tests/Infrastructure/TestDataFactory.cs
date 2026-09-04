@@ -91,6 +91,97 @@ public static class TestDataFactory
         return orden;
     }
 
+    public static async Task<Sitio> SeedSitioAsync(this StcApiFactory factory, Guid clienteId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StcDbContext>();
+
+        var sitio = new Sitio
+        {
+            Id = Guid.NewGuid(),
+            ClienteId = clienteId,
+            Nombre = $"Sitio {Guid.NewGuid():N}",
+            Tipo = TipoSitio.Edificio,
+            Direccion = "Direccion de prueba 123",
+        };
+
+        db.Sitios.Add(sitio);
+        await db.SaveChangesAsync();
+
+        return sitio;
+    }
+
+    public static async Task<Unidad> SeedUnidadAsync(this StcApiFactory factory, Guid sitioId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StcDbContext>();
+
+        var unidad = new Unidad
+        {
+            Id = Guid.NewGuid(),
+            SitioId = sitioId,
+            Identificador = $"Unidad {Guid.NewGuid():N}",
+        };
+
+        db.Unidades.Add(unidad);
+        await db.SaveChangesAsync();
+
+        return unidad;
+    }
+
+    public static async Task<Ocupante> SeedOcupanteAsync(this StcApiFactory factory, Guid unidadId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StcDbContext>();
+
+        var ocupante = new Ocupante
+        {
+            Id = Guid.NewGuid(),
+            UnidadId = unidadId,
+            Nombre = $"Ocupante {Guid.NewGuid():N}",
+        };
+
+        db.Ocupantes.Add(ocupante);
+        await db.SaveChangesAsync();
+
+        return ocupante;
+    }
+
+    public static async Task<Activo> SeedActivoAsync(
+        this StcApiFactory factory,
+        Guid clienteId,
+        Guid? sitioId = null,
+        Guid? unidadId = null,
+        Guid? ocupanteId = null,
+        TipoActivo tipo = TipoActivo.Camara)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StcDbContext>();
+
+        var activo = new Activo
+        {
+            Id = Guid.NewGuid(),
+            ClienteId = clienteId,
+            SitioId = sitioId,
+            UnidadId = unidadId,
+            OcupanteId = ocupanteId,
+            Tipo = tipo,
+        };
+
+        db.Activos.Add(activo);
+        await db.SaveChangesAsync();
+
+        return activo;
+    }
+
+    public static async Task<Activo?> FindActivoAsync(this StcApiFactory factory, Guid activoId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StcDbContext>();
+
+        return await db.Activos.AsNoTracking().SingleOrDefaultAsync(a => a.Id == activoId);
+    }
+
     public static async Task<Insumo> SeedInsumoAsync(this StcApiFactory factory, decimal stockActual = 0)
     {
         using var scope = factory.Services.CreateScope();
