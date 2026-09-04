@@ -120,37 +120,48 @@ dotnet run --project .
 - No hay ambiente de staging separado (ver [../roadmaps/00-fortalecimiento.md](../roadmaps/00-fortalecimiento.md), ítem 9) — remoto **es** la única base real que existe hoy, así que conviene tratarlo con el mismo cuidado que a producción aunque todavía no esté "en vivo" cara al público.
 - Antes de aplicar una migración nueva acá, seguir el flujo completo de [04-Migraciones.md](04-Migraciones.md) (validar en local primero, backup, revisar si es destructiva).
 
-## El login (Supabase Auth) es un tercer switch independiente
+## El login (Supabase Auth) trae dos switches propios, no uno
 
 Todo lo de arriba controla contra qué base corre la **API en C#**. El login es otra historia: `frontend/src/lib/supabase.ts` crea el cliente de `@supabase/supabase-js` con `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`, leídos de `frontend/.env` — un archivo **completamente aparte** del `dotnet user-secrets` de la API. El login (y toda la sesión de Supabase Auth) valida siempre contra el proyecto que indique ese `.env`, sin importar a qué base esté apuntando la API en ese momento.
 
-Es decir, hay **dos switches independientes**, no uno:
+Pero eso solo cubre el login en sí — la API, por su lado, tiene que **confiar** en los JWT que emite ese mismo proyecto, y eso es una configuración aparte (`Supabase:Jwt:Issuer`). En total son **tres switches independientes**, no uno:
 
 | | Dónde se configura | Qué controla |
 |---|---|---|
 | `frontend/.env` (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`) | `.env` del frontend | Contra qué proyecto Supabase se hace login (Supabase Auth) |
 | `dotnet user-secrets` (`ConnectionStrings:StcDatabase`) | user-secrets de la API | Contra qué Postgres corren las queries de negocio de la API (clientes, sitios, activos, etc., incluida la tabla `usuarios`) |
+| `dotnet user-secrets` (`Supabase:Jwt:Issuer`) | user-secrets de la API | Qué proyecto Supabase Auth acepta la API como emisor válido de JWT — si no coincide con el proyecto donde se logueó el frontend, la API rechaza el token entero |
 
 ### Dónde se puede desalinear
 
-Después del login, `AuthContext.jsx` hace un segundo paso: llama a `GET /usuarios/me` **contra la API**, para confirmar que ese usuario existe y está activo en la tabla `usuarios` (ver [02-Backend-API.md](02-Backend-API.md)). Si el `.env` del frontend y el `user-secrets` de la API no apuntan al mismo proyecto/base, ese segundo paso falla aunque el login en sí haya funcionado:
+Dos formas distintas de que el login "funcione pero no funcione":
+
+**1. Connection string apuntando a otra base que el login.** Después del login, `AuthContext.jsx` hace un segundo paso: llama a `GET /usuarios/me` **contra la API**, para confirmar que ese usuario existe y está activo en la tabla `usuarios` (ver [02-Backend-API.md](02-Backend-API.md)). Si el `.env` del frontend y el `ConnectionStrings:StcDatabase` de la API no apuntan al mismo proyecto/base, ese segundo paso falla aunque el login en sí haya funcionado:
 
 - Login contra Supabase Auth **remoto** → JWT válido, con un `sub` que existe en la tabla `usuarios` del proyecto **remoto**.
 - Si la API está apuntando a **Docker local** en ese momento, `GET /usuarios/me` busca ese `sub` en la tabla `usuarios` de la base **local** (que tiene otro usuario, el del `seed.sql`, con otro id) → no lo encuentra → `AuthContext` interpreta que no es staff activo y **cierra la sesión sola**, aunque el login pareciera haber andado un instante antes de eso.
 
-Para evitar esta confusión, chequear ambos switches juntos cuando algo de auth no cierra: `grep VITE_SUPABASE_URL frontend/.env` (sin exponer el valor completo si se comparte pantalla) y `dotnet user-secrets list` desde `api/src/Stc.Api` — tienen que corresponder al mismo ambiente (los dos a local, o los dos al mismo proyecto remoto).
+**2. Issuer del JWT sin actualizar.** `appsettings.json` trae `Supabase:Jwt:Issuer` **commiteado apuntando al proyecto remoto** (no es secreto, ver CLAUDE.md — es el valor por default si no se lo pisa con `dotnet user-secrets`). Si el frontend loguea contra Supabase Auth **local** pero nadie pisó ese default, la API sigue esperando tokens emitidos por el proyecto remoto:
+
+- Login contra Supabase Auth **local** → JWT válido, con issuer `http://127.0.0.1:54321/auth/v1`.
+- La API valida `ValidIssuer` contra `Supabase:Jwt:Issuer` (por default, el remoto) → no coincide → rechaza el token con **`401 Unauthorized`** en *cualquier* endpoint autenticado, incluido `GET /usuarios/me` — a diferencia del caso 1, acá ni siquiera llega a hacer la consulta a `usuarios`, el token se rechaza antes.
+
+Para evitar esta confusión, chequear los tres switches juntos cuando algo de auth no cierra: `grep VITE_SUPABASE_URL frontend/.env` (sin exponer el valor completo si se comparte pantalla) y `dotnet user-secrets list` desde `api/src/Stc.Api` (mirando tanto `ConnectionStrings:StcDatabase` como `Supabase:Jwt:Issuer`) — los tres tienen que corresponder al mismo ambiente (los tres a local, o los tres al mismo proyecto remoto).
 
 ### Para loguear contra Docker local de punta a punta
 
-`scripts/switch-env.sh local` ya resuelve los primeros dos puntos de una sola vez. Sigue haciendo falta el tercero:
+`scripts/switch-env.sh local` ya resuelve los primeros dos puntos (connection string + issuer) de una sola vez. Sigue haciendo falta el tercero:
 
 1. `frontend/.env` apuntando a Docker local — lo hace `scripts/switch-env.sh local`.
-2. La API (`dotnet user-secrets`) apuntando también a Docker local — lo hace `scripts/switch-env.sh local`.
+2. La API (`ConnectionStrings:StcDatabase` y `Supabase:Jwt:Issuer` en `dotnet user-secrets`) apuntando también a Docker local — lo hace `scripts/switch-env.sh local`.
 3. Un usuario real en esa base local — en Supabase Auth local **y** su fila correspondiente en `usuarios`. El seed (`supabase/seed.sql`) puede traer uno de prueba; si no alcanza, `frontend/e2e/global-setup.ts` muestra cómo crear uno mediante la API admin de Supabase Auth local, ya que es exactamente lo que hace para poder correr el E2E de Playwright sin depender de un usuario cargado a mano.
+
+En los dos casos hay que **reiniciar la API** después de correr el script, por el mismo motivo de siempre (la config se lee al arrancar el proceso).
 
 ## Errores comunes al confundir el ambiente
 
 - **"No veo los datos que cargué"**: seguramente se cargaron en una base y se está mirando la otra (por ejemplo, se probó algo con la API apuntando a remoto, y después se volvió a local sin darse cuenta). Chequear `dotnet user-secrets list` para confirmar contra qué base está corriendo la API en ese momento.
 - **`InvalidCastException` con enums después de aplicar una migración**: la API sigue corriendo con el catálogo de tipos viejo — reiniciarla (ver arriba).
 - **Una migración nueva "no está" en remoto aunque ya se commiteó**: commitear la migración no la aplica sola en ningún lado — hay que correr `supabase db push` explícitamente contra el proyecto vinculado (ver [04-Migraciones.md](04-Migraciones.md)). Usar `supabase migration list` para confirmar el estado real en vez de asumir por la fecha del commit.
-- **El login parece funcionar un instante y después la sesión se cierra sola**: el `.env` del frontend y el `user-secrets` de la API están apuntando a ambientes distintos (por ejemplo, login contra Supabase Auth remoto pero la API contra Docker local) — ver la sección de arriba.
+- **El login parece funcionar un instante y después la sesión se cierra sola**: el `.env` del frontend y el `ConnectionStrings:StcDatabase` de la API están apuntando a bases distintas (por ejemplo, login contra Supabase Auth remoto pero la API contra Docker local) — ver la sección de arriba.
+- **`401 Unauthorized` en cualquier endpoint autenticado (por ejemplo `/usuarios/me`) justo después de loguear, sin que llegue a fallar por "usuario no encontrado"**: `Supabase:Jwt:Issuer` de la API no coincide con el proyecto Supabase Auth contra el que logueó el frontend — la API rechaza el JWT por el issuer antes de llegar a consultar la tabla `usuarios`. `scripts/switch-env.sh` ya sincroniza esto; si se switcheó a mano, revisar `dotnet user-secrets list` en busca de `Supabase:Jwt:Issuer`.

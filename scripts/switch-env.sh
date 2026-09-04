@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Switchea la API (dotnet user-secrets) y el login del frontend (frontend/.env)
-# entre el Docker local de Supabase y el proyecto remoto, en un solo paso.
+# Switchea la API (dotnet user-secrets: connection string + issuer del JWT)
+# y el login del frontend (frontend/.env) entre el Docker local de Supabase
+# y el proyecto remoto, en un solo paso.
+#
+# El issuer del JWT importa tanto como la connection string: appsettings.json
+# trae "Supabase:Jwt:Issuer" commiteado apuntando al proyecto remoto (no es
+# secreto, ver CLAUDE.md); sin overridearlo a local, un login contra Supabase
+# Auth local emite un JWT con otro issuer y la API lo rechaza con 401 en todo
+# endpoint autenticado (incluido /usuarios/me), aunque el login en si haya
+# funcionado.
 #
 # Uso:
 #   scripts/switch-env.sh local
@@ -54,6 +62,7 @@ local)
   set_env_var "$FRONTEND_ENV" "VITE_SUPABASE_ANON_KEY" "$ANON_KEY"
 
   (cd "$API_DIR" && dotnet user-secrets set "ConnectionStrings:StcDatabase" "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres;SSL Mode=Disable" >/dev/null)
+  (cd "$API_DIR" && dotnet user-secrets set "Supabase:Jwt:Issuer" "${API_URL}/auth/v1" >/dev/null)
 
   echo "==> Listo: frontend/.env y la API apuntan al Docker local."
   ;;
@@ -92,6 +101,7 @@ EOF
   set_env_var "$FRONTEND_ENV" "VITE_SUPABASE_ANON_KEY" "$SUPABASE_ANON_KEY"
 
   (cd "$API_DIR" && dotnet user-secrets set "ConnectionStrings:StcDatabase" "Host=${DB_HOST};Port=5432;Database=postgres;Username=postgres.${DB_PROJECT_REF};Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true" >/dev/null)
+  (cd "$API_DIR" && dotnet user-secrets set "Supabase:Jwt:Issuer" "${SUPABASE_URL}/auth/v1" >/dev/null)
 
   echo "==> Listo: frontend/.env y la API apuntan al proyecto remoto (${DB_PROJECT_REF})."
   ;;
