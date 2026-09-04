@@ -25,7 +25,7 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
     await page.getByLabel('Nombre', { exact: true }).fill(clienteNombre)
     await page.getByRole('button', { name: /guardar cliente/i }).click()
 
-    const clienteCard = page.locator('.list-item', { hasText: clienteNombre })
+    const clienteCard = page.locator('.data-grid-row', { hasText: clienteNombre })
     await expect(clienteCard).toBeVisible()
     await clienteCard.getByRole('link', { name: /ver detalle/i }).click()
 
@@ -33,11 +33,13 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
 
     // --- Sitio ---
     await page.getByRole('button', { name: 'Nuevo sitio' }).click()
-    await page.getByLabel('Nombre').fill(sitioNombre)
-    await page.getByLabel('Direccion').fill('Calle Falsa 123')
+    // Mismo caso que el campo Nombre de cliente (linea 23): el listado de
+    // sitios de esta misma pagina tiene su propio buscador por nombre.
+    await page.getByLabel('Nombre', { exact: true }).fill(sitioNombre)
+    await page.getByLabel('Dirección', { exact: true }).fill('Calle Falsa 123')
     await page.getByRole('button', { name: /guardar sitio/i }).click()
 
-    const sitioCard = page.locator('.list-item', { hasText: sitioNombre })
+    const sitioCard = page.locator('.data-grid-row', { hasText: sitioNombre })
     await expect(sitioCard).toBeVisible()
     await sitioCard.getByRole('link', { name: /ver detalle/i }).click()
 
@@ -50,9 +52,11 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
 
     const unidadRow = page.locator('.data-grid-row', { hasText: unidadIdentificador })
     await expect(unidadRow).toBeVisible()
-    await unidadRow.getByRole('link', { name: /abrir ficha/i }).click()
+    await unidadRow.getByRole('link', { name: /ver detalle/i }).click()
 
-    await expect(page.getByText(unidadIdentificador)).toBeVisible()
+    // exact: true porque el identificador tambien aparece como substring
+    // dentro del <h2> "Sitio E2E ... - U-...": sin exact, ambos matchean.
+    await expect(page.getByText(unidadIdentificador, { exact: true })).toBeVisible()
 
     // --- Ocupante (paso obligatorio antes de poder crear un activo) ---
     await page.getByRole('button', { name: 'Gestionar ocupantes' }).click()
@@ -68,6 +72,7 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
 
     await expect(page.getByText('Alta de activo bloqueada')).toHaveCount(0)
 
+    await page.getByRole('button', { name: 'Nuevo activo' }).click()
     await page.getByPlaceholder('Buscar ocupante existente').fill(ocupanteNombre)
     await page.getByRole('button', { name: new RegExp(ocupanteNombre) }).click()
     await expect(page.getByText(`Seleccionado: ${ocupanteNombre}`)).toBeVisible()

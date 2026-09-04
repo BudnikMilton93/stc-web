@@ -82,6 +82,12 @@ function ensureUsuarioRow(authId: string) {
   // la API: acceso directo, sin pasar por PostgREST/RLS). `usuarios.email`
   // es unico, asi que ON CONFLICT cubre tanto la primera corrida como las
   // siguientes contra el mismo Supabase local.
+  //
+  // El SQL se pasa por stdin, no con `-c`: la interpolacion de variables
+  // (`:'authId'`) de psql no se aplica dentro de un argumento `-c` en todas
+  // las versiones del cliente (confirmado con psql 18.4 de Homebrew, que
+  // tira "syntax error at or near ':'" ahi pero interpola sin problema
+  // cuando el mismo SQL llega por stdin).
   const sql = `
     insert into usuarios (auth_id, nombre, email, activo)
     values (:'authId', :'nombre', :'email', true)
@@ -100,11 +106,10 @@ function ensureUsuarioRow(authId: string) {
       `nombre=${E2E_ADMIN_NOMBRE}`,
       '-v',
       `email=${E2E_ADMIN_EMAIL}`,
-      '-c',
-      sql,
     ],
     {
-      stdio: 'inherit',
+      input: sql,
+      stdio: ['pipe', 'inherit', 'inherit'],
     },
   )
 }
