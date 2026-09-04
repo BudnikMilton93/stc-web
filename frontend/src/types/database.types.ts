@@ -47,8 +47,10 @@ export type Database = {
           notas: string | null
           numero_serie: string | null
           ocupante_id: string | null
+          proximo_mantenimiento: string | null
           sitio_id: string | null
           tipo: Database["public"]["Enums"]["tipo_activo"]
+          ultima_revision: string | null
           unidad_id: string | null
         }
         Insert: {
@@ -63,8 +65,10 @@ export type Database = {
           notas?: string | null
           numero_serie?: string | null
           ocupante_id?: string | null
+          proximo_mantenimiento?: string | null
           sitio_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_activo"]
+          ultima_revision?: string | null
           unidad_id?: string | null
         }
         Update: {
@@ -79,8 +83,10 @@ export type Database = {
           notas?: string | null
           numero_serie?: string | null
           ocupante_id?: string | null
+          proximo_mantenimiento?: string | null
           sitio_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_activo"]
+          ultima_revision?: string | null
           unidad_id?: string | null
         }
         Relationships: [
@@ -638,7 +644,13 @@ export type Database = {
         | "resuelto"
         | "cancelado"
       prioridad_orden: "baja" | "normal" | "alta" | "urgente"
-      tipo_activo: "camara" | "portero" | "cerradura_magnetica" | "otro"
+      tipo_activo:
+        | "camara"
+        | "portero"
+        | "cerradura_magnetica"
+        | "otro"
+        | "llavero"
+        | "control_acceso"
       tipo_cliente: "persona" | "empresa" | "consorcio"
       tipo_servicio: "instalacion" | "mantenimiento" | "otro"
       tipo_sitio: "edificio" | "casa" | "oficina" | "comercio" | "otro"
@@ -782,7 +794,14 @@ export const Constants = {
         "cancelado",
       ],
       prioridad_orden: ["baja", "normal", "alta", "urgente"],
-      tipo_activo: ["camara", "portero", "cerradura_magnetica", "otro"],
+      tipo_activo: [
+        "camara",
+        "portero",
+        "cerradura_magnetica",
+        "otro",
+        "llavero",
+        "control_acceso",
+      ],
       tipo_cliente: ["persona", "empresa", "consorcio"],
       tipo_servicio: ["instalacion", "mantenimiento", "otro"],
       tipo_sitio: ["edificio", "casa", "oficina", "comercio", "otro"],

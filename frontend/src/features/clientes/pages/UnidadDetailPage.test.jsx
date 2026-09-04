@@ -111,6 +111,8 @@ describe('UnidadDetailPage', () => {
       numeroSerie: null,
       fechaInstalacion: null,
       garantiaHasta: null,
+      proximoMantenimiento: null,
+      ultimaRevision: null,
       notas: null,
       clienteId: 'cliente-1',
       sitioId: 'sitio-1',

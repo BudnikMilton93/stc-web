@@ -1,28 +1,9 @@
 import { useMemo, useState } from 'react'
 import { apiClient, ApiError } from '../../../lib/apiClient'
 import { useArchivableEntityActions } from './useArchivableEntityActions'
+import { buildActivoBasePayload, buildActivoLifecyclePayload, initialActivoBaseForm, mapActivoToBaseForm } from './activoFormShared'
 
-const initialForm = {
-  tipo: 'camara',
-  marca: '',
-  modelo: '',
-  numero_serie: '',
-  fecha_instalacion: '',
-  garantia_hasta: '',
-  notas: '',
-}
-
-const buildActivoPayload = (activo, estado) => ({
-  tipo: activo.tipo,
-  ocupanteId: activo.ocupanteId,
-  marca: activo.marca,
-  modelo: activo.modelo,
-  numeroSerie: activo.numeroSerie,
-  fechaInstalacion: activo.fechaInstalacion,
-  garantiaHasta: activo.garantiaHasta,
-  notas: activo.notas,
-  estado,
-})
+const initialForm = initialActivoBaseForm
 
 // Maneja el modal de alta/edicion de activo y el autocomplete de ocupante
 // responsable. La baja/rehabilitacion la resuelve useArchivableEntityActions;
@@ -51,8 +32,8 @@ export function useActivoForm({ clienteId, sitioId, unidadId, activos, selectabl
     apiPath: (id) => `/activos/${id}`,
     entityLabel: 'el activo',
     getEntityName: (activo) => activo.numeroSerie || activo.tipo,
-    buildBajaPayload: (activo) => buildActivoPayload(activo, 'deBaja'),
-    buildRestorePayload: (activo) => buildActivoPayload(activo, 'activo'),
+    buildBajaPayload: (activo) => buildActivoLifecyclePayload(activo, 'deBaja'),
+    buildRestorePayload: (activo) => buildActivoLifecyclePayload(activo, 'activo'),
     onSaved,
     setError: setFormError,
   })
@@ -99,15 +80,7 @@ export function useActivoForm({ clienteId, sitioId, unidadId, activos, selectabl
   const startEditForm = (activo) => {
     setShowForm(true)
     setEditingActivoId(activo.id)
-    setForm({
-      tipo: activo.tipo,
-      marca: activo.marca ?? '',
-      modelo: activo.modelo ?? '',
-      numero_serie: activo.numeroSerie ?? '',
-      fecha_instalacion: activo.fechaInstalacion ?? '',
-      garantia_hasta: activo.garantiaHasta ?? '',
-      notas: activo.notas ?? '',
-    })
+    setForm(mapActivoToBaseForm(activo))
 
     const owner = selectableOcupantes.find((item) => item.id === activo.ocupanteId)
     if (owner) {
@@ -152,15 +125,7 @@ export function useActivoForm({ clienteId, sitioId, unidadId, activos, selectabl
 
     const activoActual = editingActivoId ? activos.find((item) => item.id === editingActivoId) : null
 
-    const payload = {
-      tipo: form.tipo,
-      marca: form.marca.trim() || null,
-      modelo: form.modelo.trim() || null,
-      numeroSerie: form.numero_serie.trim() || null,
-      fechaInstalacion: form.fecha_instalacion || null,
-      garantiaHasta: form.garantia_hasta || null,
-      notas: form.notas.trim() || null,
-    }
+    const payload = buildActivoBasePayload(form)
 
     try {
       if (editingActivoId) {

@@ -26,7 +26,7 @@ import { useActivosDeUnidad } from '../hooks/useActivosDeUnidad'
 import { useActivoForm } from '../hooks/useActivoForm'
 import { isArchivedRecord } from '../utils/archiveFlag'
 
-const TIPOS_ACTIVO = ['camara', 'portero', 'cerraduraMagnetica', 'otro']
+const TIPOS_ACTIVO = ['camara', 'portero', 'cerraduraMagnetica', 'llavero', 'otro']
 
 export function UnidadDetailPage() {
   const { clienteId, sitioId, unidadId } = useParams()
@@ -622,6 +622,22 @@ export function UnidadDetailPage() {
               type="date"
               value={activoForm.form.garantia_hasta}
               onChange={(e) => activoForm.updateField('garantia_hasta', e.target.value)}
+            />
+          </label>
+          <label>
+            Ultima revision
+            <input
+              type="date"
+              value={activoForm.form.ultima_revision}
+              onChange={(e) => activoForm.updateField('ultima_revision', e.target.value)}
+            />
+          </label>
+          <label>
+            Proximo mantenimiento
+            <input
+              type="date"
+              value={activoForm.form.proximo_mantenimiento}
+              onChange={(e) => activoForm.updateField('proximo_mantenimiento', e.target.value)}
             />
           </label>
 

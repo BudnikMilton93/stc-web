@@ -45,7 +45,7 @@ const unidadesMock = [
   },
 ]
 
-function mockGetRoutes({ unidades = unidadesMock, ocupantesByUnidad = {} } = {}) {
+function mockGetRoutes({ unidades = unidadesMock, ocupantesByUnidad = {}, equipamiento = [] } = {}) {
   apiClient.get.mockImplementation((path) => {
     if (path === '/sitios/sitio-1') {
       return Promise.resolve(sitioMock)
@@ -55,6 +55,9 @@ function mockGetRoutes({ unidades = unidadesMock, ocupantesByUnidad = {} } = {})
     }
     if (path === '/unidades?sitioId=sitio-1') {
       return Promise.resolve(unidades)
+    }
+    if (path === '/activos?sitioId=sitio-1&soloEquipamientoSitio=true') {
+      return Promise.resolve(equipamiento)
     }
     const ocupantesMatch = path.match(/^\/ocupantes\?unidadId=(.+)$/)
     if (ocupantesMatch) {
@@ -172,5 +175,55 @@ describe('SitioDetailPage', () => {
 
     expect(await screen.findByText('Identificador invalido')).toBeInTheDocument()
     expect(screen.getByLabelText('Identificador')).toBeInTheDocument()
+  })
+
+  it('carga el equipamiento de sitio y permite dar de alta un item nuevo', async () => {
+    const user = userEvent.setup()
+    apiClient.post.mockResolvedValue({ id: 'equipo-1' })
+    mockGetRoutes({
+      equipamiento: [
+        {
+          id: 'equipo-1',
+          clienteId: 'cliente-1',
+          sitioId: 'sitio-1',
+          unidadId: null,
+          ocupanteId: null,
+          tipo: 'camara',
+          marca: 'Hikvision',
+          modelo: 'DS-2',
+          numeroSerie: 'SN-1',
+          fechaInstalacion: null,
+          garantiaHasta: null,
+          proximoMantenimiento: null,
+          ultimaRevision: null,
+          estado: 'activo',
+          notas: null,
+        },
+      ],
+    })
+    renderPage()
+
+    expect(await screen.findByText('Camara')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Nuevo equipamiento/i }))
+    await user.click(screen.getByRole('button', { name: /Guardar equipamiento/i }))
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalled())
+
+    expect(apiClient.post).toHaveBeenCalledWith('/activos', {
+      tipo: 'camara',
+      marca: null,
+      modelo: null,
+      numeroSerie: null,
+      fechaInstalacion: null,
+      garantiaHasta: null,
+      proximoMantenimiento: null,
+      ultimaRevision: null,
+      notas: null,
+      clienteId: 'cliente-1',
+      sitioId: 'sitio-1',
+      unidadId: null,
+      ocupanteId: null,
+    })
   })
 })
