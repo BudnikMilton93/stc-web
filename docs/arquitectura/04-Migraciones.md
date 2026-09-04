@@ -4,7 +4,7 @@ Este documento describe el flujo seguro para llevar un cambio de schema desde un
 
 ## Contexto: no hay ambiente de staging
 
-Hoy existe **un solo proyecto Supabase** para este sistema. No hay un ambiente intermedio (staging) entre "local en Docker" y "el remoto real". Esto significa que **toda migración que se aplica en remoto se aplica directo sobre la base que eventualmente tiene (o ya tiene) datos reales de clientes** — no hay red de seguridad institucional más allá de la disciplina de este flujo. Ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md) para el ítem de deuda relacionado.
+Hoy existe **un solo proyecto Supabase** para este sistema. No hay un ambiente intermedio (staging) entre "local en Docker" y "el remoto real". Esto significa que **toda migración que se aplica en remoto se aplica directo sobre la base que eventualmente tiene (o ya tiene) datos reales de clientes** — no hay red de seguridad institucional más allá de la disciplina de este flujo. Ver [../roadmaps/00-fortalecimiento.md](../roadmaps/00-fortalecimiento.md) para el ítem de deuda relacionado.
 
 ## Flujo estándar
 

@@ -1,6 +1,6 @@
 # Roadmap de fortalecimiento
 
-Este documento registra la deuda conocida y el plan para resolverla, **no** funcionalidades nuevas del negocio. Es el lugar para ir tachando lo que se resuelve y anotar lo que se descubre en el camino. Para cómo está armado el sistema hoy, ver [docs/arquitectura/](arquitectura/00-Contexto-Proyecto.md).
+Este documento registra la deuda conocida y el plan para resolverla, **no** funcionalidades nuevas del negocio. Es el lugar para ir tachando lo que se resuelve y anotar lo que se descubre en el camino. Para cómo está armado el sistema hoy, ver [docs/arquitectura/](../arquitectura/00-Contexto-Proyecto.md).
 
 Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (agosto 2026). Con la migración cerrada, el objetivo de esta etapa no es escalar funcionalidad sino asegurar que la base aguante antes de operar con datos reales de clientes.
 
@@ -16,12 +16,12 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 6 | Endpoints `orden_items` y `adjuntos` | Pendiente, sin urgencia | Sub-recursos; esperar a que el frontend los necesite (ordenes/usuarios siguen siendo placeholders) |
 | 7 | Baja lógica de `sitios`/`unidades`/`ocupantes` vía flag de texto en `notas` | Pendiente, importante | No hay soft-delete real en el schema para estas 3 tablas; se simula escribiendo `[BAJA_LOGICA]` dentro de `notas`. Reemplazar por una columna real |
 | 8 | Falta validar pertenencia jerárquica cliente→sitio→unidad→ocupante en los endpoints CRUD | Pendiente, baja prioridad | Detectado en la revisión de seguridad del feature "equipamiento de sitio". No es IDOR explotable hoy (sistema single-admin), es integridad de datos. Patrón parejo en `ActivosEndpoints`, `SitiosEndpoints`, `UnidadesEndpoints` |
-| 9 | No hay ambiente de staging separado de producción | Pendiente, a evaluar | Un solo proyecto Supabase para todo; toda migración remota se aplica directo sobre la base que eventualmente sirve datos reales. Mitigado con el flujo documentado en [docs/arquitectura/04-Migraciones.md](arquitectura/04-Migraciones.md) (validar en Docker local primero, backup antes de aplicar), pero no reemplaza tener un proyecto Supabase de staging real |
+| 9 | No hay ambiente de staging separado de producción | Pendiente, a evaluar | Un solo proyecto Supabase para todo; toda migración remota se aplica directo sobre la base que eventualmente sirve datos reales. Mitigado con el flujo documentado en [docs/arquitectura/04-Migraciones.md](../arquitectura/04-Migraciones.md) (validar en Docker local primero, backup antes de aplicar), pero no reemplaza tener un proyecto Supabase de staging real |
 
 ## Detalle
 
 ### 1. Tests de la API — Hecho (`464e294`)
-`api/src/Stc.Api.Tests`: xUnit + `WebApplicationFactory`, con Postgres real vía Testcontainers (no InMemory/SQLite: la API mapea enums nativos de Postgres). 17 tests cubriendo la policy única `Activo`, el enriquecimiento de claims (`CurrentUserEnrichmentMiddlewareTests`), `OrdenesEndpoints`, `UsuariosEndpoints`, `LeadsEndpoints` (incluido el `POST` público), `MovimientosStockEndpoints` (cálculo de stock) y un CRUD de punta a punta sobre `ClientesEndpoints`. No corren contra `supabase/migrations/20260724195456_rls_policies.sql` ni `20260901000000_usuario_unico_sin_roles.sql` (dependen de `auth.uid()`/rol `authenticated`, inexistentes en un Postgres vanilla) — la autorización real de los tests es la policy de la API, RLS queda cubierto por el punto 3.
+`api/src/Stc.Api.Tests`: xUnit + `WebApplicationFactory`, Postgres real vía Testcontainers. Detalle completo de cómo está armado y qué cubre cada archivo: [docs/arquitectura/06-Testing.md](../arquitectura/06-Testing.md#api--xunit--testcontainers).
 
 ### 2. CI/CD — Hecho
 `.github/workflows/ci.yml` (GitHub Actions), dos jobs independientes en paralelo:
@@ -42,21 +42,14 @@ Diferido:
 - **CORS de producción sin definir**: `api/src/Stc.Api/Program.cs` solo habilita el origen de Vite en desarrollo (`FrontendDevCorsPolicy`). No es una vulnerabilidad activa hoy (sin CORS explícito, ASP.NET Core deniega cross-origin por default) — el riesgo real sería agregar `AllowAnyOrigin()` apurados en el momento del deploy. Queda bloqueante recién cuando exista un dominio real de producción, no antes.
 
 ### 4. Tests de frontend — Hecho
-Vitest + React Testing Library, agregado a `.github/workflows/ci.yml` (job `frontend`, step `npm run test`). 25 tests:
-- `src/lib/apiClient.test.js` — lógica pura mockeando `fetch`/`supabase.auth.getSession`: header `Authorization` presente/ausente, parseo de body (JSON/texto/vacío), `ApiError` con status/body/message correctos, serialización de body en `post/put/patch`.
-- `src/components/auth/ProtectedRoute.test.jsx` y `src/features/auth/pages/AdminLoginPage.test.jsx` — ruta crítica de auth, mockeando `useAuth`: loading, redirección si no autorizado/ya autorizado, envío del form, error de `signIn` en pantalla.
-- `src/features/clientes/pages/ClientesPage.test.jsx` — un CRUD representativo (carga, filtro en memoria, alta con payload correcto, validación de nombre obligatorio, error de la API en el form), sin repetir el mismo patrón en `SitioDetailPage`/`UnidadDetailPage`/`InventarioPage`/`ClienteDetailPage` (mismo criterio que se usó del lado de la API: cobertura representativa, no exhaustiva).
-
-`AuthContext.jsx` no se testeó de forma aislada — se verifica indirectamente vía `ProtectedRoute`/`AdminLoginPage` mockeando `useAuth`, igual que `CurrentUserEnrichmentMiddleware` se verificó vía la policy real en el punto 1.
+Vitest + React Testing Library, agregado a `.github/workflows/ci.yml` (job `frontend`, step `npm run test`). Detalle completo de qué cubre cada archivo: [docs/arquitectura/06-Testing.md](../arquitectura/06-Testing.md#frontend--vitest--react-testing-library).
 
 ### 5. E2E de flujos críticos — Hecho
-Playwright, `frontend/e2e/`. El flujo real es login → cliente → sitio → unidad → **ocupante** → activo (no se puede dar de alta un activo sin al menos un ocupante en la unidad, restricción de la UI) — la redacción corta del roadmap omitía ese paso intermedio, pero el spec lo cubre.
+Playwright, `frontend/e2e/`. El flujo real es login → cliente → sitio → unidad → **ocupante** → activo (no se puede dar de alta un activo sin al menos un ocupante en la unidad, restricción de la UI). Deliberadamente fuera de `.github/workflows/ci.yml` (corrida manual, `npm run test:e2e`) — levantar Supabase + API + frontend + Chromium coordinados es mucho más lento y frágil que los jobs de CI actuales.
 
-- `flujo-critico.spec.ts` — crea toda la jerarquía de punta a punta contra el sistema real (Supabase local + API real + frontend real, sin mocks) y verifica que el activo queda visible con el ocupante asignado.
-- `login.spec.ts` — credenciales inválidas muestran el error real de Supabase Auth sin navegar al panel.
-- `e2e/global-setup.ts` crea un usuario admin real (Supabase Auth + fila en `usuarios`) antes de que `playwright.config.ts` levante la API y el frontend reales vía `webServer`.
-- Corrida manual: `npm run test:e2e` desde `frontend/` (requiere `supabase start` corriendo). **Deliberadamente fuera de `.github/workflows/ci.yml`**: levantar Supabase + API + frontend + Chromium es mucho más lento y frágil (3 procesos coordinados, timing de arranque) que los jobs actuales de segundos — se documenta como corrida manual antes de cambios grandes o de un deploy, no como gate de cada PR.
-- Efecto lateral encontrado al correr contra el sistema real (no simulable con mocks): `api/src/Stc.Api/Program.cs` exigía HTTPS para el JWKS siempre (`RequireHttps = true`), lo cual rompe contra el Supabase local (JWKS por HTTP). Se relajó solo en `Development`, sin afectar producción ni el entorno `Testing` de `Stc.Api.Tests` (confirmado: sus 20 tests siguen en verde).
+Efecto lateral encontrado al escribirlo, contra el sistema real (no simulable con mocks): `api/src/Stc.Api/Program.cs` exigía HTTPS para el JWKS siempre (`RequireHttps = true`), lo cual rompe contra el Supabase local (JWKS por HTTP). Se relajó solo en `Development`, sin afectar producción ni el entorno `Testing` de `Stc.Api.Tests`.
+
+Al retomarlo después de un tiempo sin correrlo se encontraron y corrigieron varios problemas acumulados (un bug real en `global-setup.ts` con `psql -c`, y 6 selectores desactualizados en `flujo-critico.spec.ts` por refactors de UI que nunca le llegaron) — evidencia concreta de que "deliberadamente fuera del CI" tiene un costo real de mantenimiento. Detalle completo, formas de correr Playwright (headless/headed/debug/ui/trace) y los gotchas conocidos: [docs/arquitectura/06-Testing.md](../arquitectura/06-Testing.md#e2e--playwright).
 
 ### 6. Endpoints faltantes
 `orden_items` y `adjuntos` son las únicas tablas del schema sin endpoint propio. No es urgente: `src/features/ordenes` del frontend sigue siendo un placeholder sin CRUD funcional, así que no hay consumidor todavía (`src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin, sin roles).
@@ -84,7 +77,7 @@ Hoy existe un único proyecto Supabase para todo el sistema. No hay un ambiente 
 
 Se encontró en la práctica al llevar la migración `20260903120000_equipamiento_sitio.sql` a remoto: además de esa, había otras 2 migraciones (`20260827140000_narrow_service_scope.sql`, `20260901000000_usuario_unico_sin_roles.sql`) que estaban commiteadas hacía semanas pero nunca se habían aplicado en remoto — nadie se había dado cuenta hasta chequear con `supabase migration list`.
 
-Mitigación aplicada mientras tanto: se documentó un flujo paso a paso en [docs/arquitectura/04-Migraciones.md](arquitectura/04-Migraciones.md) — validar siempre primero contra Docker local (`supabase db reset` + `dotnet test` vía Testcontainers), revisar manualmente si la migración es destructiva antes de tocar remoto, backup antes de aplicar, y comparar con `supabase migration list` antes y después del `push`. Esto reduce el margen de error pero no reemplaza tener un proyecto Supabase de staging real con datos representativos. Evaluar si vale la pena crear uno cuando el sistema empiece a operar con datos reales de producción.
+Mitigación aplicada mientras tanto: se documentó un flujo paso a paso en [docs/arquitectura/04-Migraciones.md](../arquitectura/04-Migraciones.md) — validar siempre primero contra Docker local (`supabase db reset` + `dotnet test` vía Testcontainers), revisar manualmente si la migración es destructiva antes de tocar remoto, backup antes de aplicar, y comparar con `supabase migration list` antes y después del `push`. Esto reduce el margen de error pero no reemplaza tener un proyecto Supabase de staging real con datos representativos. Evaluar si vale la pena crear uno cuando el sistema empiece a operar con datos reales de producción.
 
 ## Cómo usar este documento
 

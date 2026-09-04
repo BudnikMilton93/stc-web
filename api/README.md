@@ -104,5 +104,5 @@ cuando el frontend los necesite.
 - Sin CORS definido para produccion (`Program.cs` solo habilita el
   origen de Vite en desarrollo) — decision diferida a proposito hasta
   que exista un dominio real de deploy, no un olvido (ver
-  `docs/roadmap-fortalecimiento.md`).
+  `docs/roadmaps/00-fortalecimiento.md`).
 - Endpoints para `orden_items` y `adjuntos` cuando se necesiten.
