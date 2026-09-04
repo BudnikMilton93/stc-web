@@ -15,6 +15,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 5 | E2E de flujos críticos (Playwright) | Hecho | 2 specs en `frontend/e2e/`, corrida manual (`npm run test:e2e`), fuera del CI a propósito |
 | 6 | Endpoints `orden_items` y `adjuntos` | Pendiente, sin urgencia | Sub-recursos; esperar a que el frontend los necesite (ordenes/usuarios siguen siendo placeholders) |
 | 7 | Baja lógica de `sitios`/`unidades`/`ocupantes` vía flag de texto en `notas` | Pendiente, importante | No hay soft-delete real en el schema para estas 3 tablas; se simula escribiendo `[BAJA_LOGICA]` dentro de `notas`. Reemplazar por una columna real |
+| 8 | Falta validar pertenencia jerárquica cliente→sitio→unidad→ocupante en los endpoints CRUD | Pendiente, baja prioridad | Detectado en la revisión de seguridad del feature "equipamiento de sitio". No es IDOR explotable hoy (sistema single-admin), es integridad de datos. Patrón parejo en `ActivosEndpoints`, `SitiosEndpoints`, `UnidadesEndpoints` |
 
 ## Detalle
 
@@ -69,6 +70,13 @@ Por qué es un problema:
 - Contraste con `activos`, que sí resuelve esto bien: tiene una columna real `estado` (enum, con valor `deBaja`).
 
 Solución propuesta: agregar una columna real (booleano `activo` o un enum de estado, siguiendo el patrón ya usado en `activos`) a `sitios`, `unidades` y `ocupantes` vía una migración nueva en `supabase/migrations/`, regenerar `frontend/src/types/database.types.ts`, actualizar las configuraciones Fluent API / entidades en `api/src/Stc.Infrastructure` y los endpoints correspondientes en `api/src/Stc.Api/Endpoints`, y simplificar los hooks del frontend (`useSitioForm`, `useUnidadForm`, `useOcupanteForm` y los hooks de listado) para leer/escribir ese campo en vez de manipular `notas`. Cruza las 3 capas (DB + API + frontend), no es un cambio menor.
+
+### 8. Falta validar pertenencia jerárquica cliente→sitio→unidad→ocupante — Pendiente, baja prioridad
+Detectado en la revisión de seguridad del feature "equipamiento de sitio" (`ActivosEndpoints.cs`). Los endpoints CRUD de la jerarquía Cliente → Sitio → Unidad → Ocupante/Activo validan reglas de *forma* (por ejemplo, en `POST`/`PUT /activos`, que si hay `unidadId` también haya `sitioId` y `ocupanteId`), pero no verifican que esos IDs realmente encajen entre sí: nada impide, a nivel de API, mandar un `sitioId` que pertenece a otro `clienteId`, o un `unidadId` que no es de ese `sitioId`, o un `ocupanteId` que no es de esa `unidadId`. El mismo patrón (ausencia de esta validación) ya existe en `SitiosEndpoints.cs` y `UnidadesEndpoints.cs` — no es una regresión de un cambio puntual, es una debilidad pareja en todo el CRUD jerárquico.
+
+Por qué no es una prioridad alta: la autorización del sistema es de un solo usuario admin sin roles ni tenants (`RequireClaim("activo","true")`) — no hay separación de datos entre usuarios que esto permita saltar, así que no es un IDOR explotable entre partes no autorizadas. El riesgo real es de **integridad de datos**: un bug de UI, un script mal armado, o un error manual podría dejar un registro con relaciones cruzadas inconsistentes (por ejemplo un activo que aparenta pertenecer a un sitio pero cuyo cliente real es otro).
+
+Solución propuesta: agregar una verificación explícita en cada endpoint de escritura (`POST`/`PUT`) que confirme, contra la base, que `sitioId.ClienteId == clienteId`, `unidadId.SitioId == sitioId`, `ocupanteId.UnidadId == unidadId` antes de persistir, devolviendo `400 BadRequest` si no coincide — siguiendo el mismo estilo que la validación de forma ya agregada en `ActivosEndpoints.cs`. Conviene resolverlo de forma pareja en `ActivosEndpoints`, `SitiosEndpoints`, `UnidadesEndpoints` y `OcupantesEndpoints` en la misma pasada, no solo en el endpoint que lo disparó.
 
 ## Cómo usar este documento
 
