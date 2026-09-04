@@ -347,7 +347,7 @@ export function UnidadDetailPage() {
             <FiCpu aria-hidden="true" />
           </div>
           <div>
-            <p className="eyebrow">Activos activos</p>
+            <p className="eyebrow">Llaveros activos</p>
             <p className="entity-overview-value">{activeActivosCount}</p>
           </div>
         </div>
