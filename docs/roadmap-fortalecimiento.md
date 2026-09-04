@@ -16,6 +16,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 6 | Endpoints `orden_items` y `adjuntos` | Pendiente, sin urgencia | Sub-recursos; esperar a que el frontend los necesite (ordenes/usuarios siguen siendo placeholders) |
 | 7 | Baja lógica de `sitios`/`unidades`/`ocupantes` vía flag de texto en `notas` | Pendiente, importante | No hay soft-delete real en el schema para estas 3 tablas; se simula escribiendo `[BAJA_LOGICA]` dentro de `notas`. Reemplazar por una columna real |
 | 8 | Falta validar pertenencia jerárquica cliente→sitio→unidad→ocupante en los endpoints CRUD | Pendiente, baja prioridad | Detectado en la revisión de seguridad del feature "equipamiento de sitio". No es IDOR explotable hoy (sistema single-admin), es integridad de datos. Patrón parejo en `ActivosEndpoints`, `SitiosEndpoints`, `UnidadesEndpoints` |
+| 9 | No hay ambiente de staging separado de producción | Pendiente, a evaluar | Un solo proyecto Supabase para todo; toda migración remota se aplica directo sobre la base que eventualmente sirve datos reales. Mitigado con el flujo documentado en [docs/arquitectura/04-Migraciones.md](arquitectura/04-Migraciones.md) (validar en Docker local primero, backup antes de aplicar), pero no reemplaza tener un proyecto Supabase de staging real |
 
 ## Detalle
 
@@ -77,6 +78,13 @@ Detectado en la revisión de seguridad del feature "equipamiento de sitio" (`Act
 Por qué no es una prioridad alta: la autorización del sistema es de un solo usuario admin sin roles ni tenants (`RequireClaim("activo","true")`) — no hay separación de datos entre usuarios que esto permita saltar, así que no es un IDOR explotable entre partes no autorizadas. El riesgo real es de **integridad de datos**: un bug de UI, un script mal armado, o un error manual podría dejar un registro con relaciones cruzadas inconsistentes (por ejemplo un activo que aparenta pertenecer a un sitio pero cuyo cliente real es otro).
 
 Solución propuesta: agregar una verificación explícita en cada endpoint de escritura (`POST`/`PUT`) que confirme, contra la base, que `sitioId.ClienteId == clienteId`, `unidadId.SitioId == sitioId`, `ocupanteId.UnidadId == unidadId` antes de persistir, devolviendo `400 BadRequest` si no coincide — siguiendo el mismo estilo que la validación de forma ya agregada en `ActivosEndpoints.cs`. Conviene resolverlo de forma pareja en `ActivosEndpoints`, `SitiosEndpoints`, `UnidadesEndpoints` y `OcupantesEndpoints` en la misma pasada, no solo en el endpoint que lo disparó.
+
+### 9. No hay ambiente de staging separado de producción — Pendiente, a evaluar
+Hoy existe un único proyecto Supabase para todo el sistema. No hay un ambiente intermedio entre "local en Docker" (`supabase start`) y el remoto real — toda migración que se aplica en remoto se aplica directo sobre la base que eventualmente sirve (o ya sirve) datos reales de clientes, sin red de seguridad institucional más allá de validar antes en local.
+
+Se encontró en la práctica al llevar la migración `20260903120000_equipamiento_sitio.sql` a remoto: además de esa, había otras 2 migraciones (`20260827140000_narrow_service_scope.sql`, `20260901000000_usuario_unico_sin_roles.sql`) que estaban commiteadas hacía semanas pero nunca se habían aplicado en remoto — nadie se había dado cuenta hasta chequear con `supabase migration list`.
+
+Mitigación aplicada mientras tanto: se documentó un flujo paso a paso en [docs/arquitectura/04-Migraciones.md](arquitectura/04-Migraciones.md) — validar siempre primero contra Docker local (`supabase db reset` + `dotnet test` vía Testcontainers), revisar manualmente si la migración es destructiva antes de tocar remoto, backup antes de aplicar, y comparar con `supabase migration list` antes y después del `push`. Esto reduce el margen de error pero no reemplaza tener un proyecto Supabase de staging real con datos representativos. Evaluar si vale la pena crear uno cuando el sistema empiece a operar con datos reales de producción.
 
 ## Cómo usar este documento
 

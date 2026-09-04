@@ -1,6 +1,6 @@
 # 00 - Contexto del proyecto
 
-Este documento resume el contexto de negocio del sistema y las decisiones de origen sobre cómo se armó la base de datos. Para el detalle de cómo está organizado el frontend, ver [01-Estructura.MD](01-Estructura.MD). Para la API en C#, ver [02-Backend-API.md](02-Backend-API.md). Para un mapa visual de todo esto junto, ver [03-Diagrama.html](03-Diagrama.html) (abrir en el navegador). Para la deuda conocida y el plan para resolverla, ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md).
+Este documento resume el contexto de negocio del sistema y las decisiones de origen sobre cómo se armó la base de datos. Para el detalle de cómo está organizado el frontend, ver [01-Estructura.MD](01-Estructura.MD). Para la API en C#, ver [02-Backend-API.md](02-Backend-API.md). Para un mapa visual de todo esto junto, ver [03-Diagrama.html](03-Diagrama.html) (abrir en el navegador). Para el flujo seguro de migraciones (local → remoto), ver [04-Migraciones.md](04-Migraciones.md). Para cómo switchear la API entre el Docker local y el proyecto remoto, ver [05-Ambientes.md](05-Ambientes.md). Para la deuda conocida y el plan para resolverla, ver [../roadmap-fortalecimiento.md](../roadmap-fortalecimiento.md).
 
 ## Qué es el sistema
 

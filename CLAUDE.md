@@ -12,7 +12,7 @@ El repo tiene tres partes:
 - `api/` — API en C# (.NET, minimal APIs + EF Core) que es la única capa que habla directo con la base de datos de negocio.
 - `supabase/` — migraciones SQL del schema y políticas RLS de Postgres (Supabase). Supabase ahora solo se usa como Postgres alojado + Supabase Auth (login); ya no se consulta directo desde el frontend para datos de negocio, RLS queda como defensa en profundidad.
 
-Documentación de arquitectura más detallada (mantenerla actualizada si se toca esto): `docs/arquitectura/00-Contexto-Proyecto.md`, `01-Estructura.MD`, `02-Backend-API.md`, `03-Diagrama.html`.
+Documentación de arquitectura más detallada (mantenerla actualizada si se toca esto): `docs/arquitectura/00-Contexto-Proyecto.md`, `01-Estructura.MD`, `02-Backend-API.md`, `03-Diagrama.html`, `04-Migraciones.md` (flujo seguro para llevar una migración de local a remoto), `05-Ambiente-Local-vs-Remoto.md` (cómo switchear la API entre el Docker local y el remoto, y qué implica trabajar en cada uno).
 
 ## Comandos
 

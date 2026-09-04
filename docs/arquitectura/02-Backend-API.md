@@ -1,6 +1,6 @@
 # 02 - Backend API (C#)
 
-Este documento describe la API propia en C# que vive en [`api/`](../../api), que reemplazó el acceso directo del frontend a Supabase (`supabase-js` + RLS) para datos de negocio. Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume esta API hoy, ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html).
+Este documento describe la API propia en C# que vive en [`api/`](../../api), que reemplazó el acceso directo del frontend a Supabase (`supabase-js` + RLS) para datos de negocio. Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume esta API hoy, ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html). Para el flujo seguro de migraciones (incluido un gotcha de Npgsql con enums nativos relevante para esta API), ver [04-Migraciones.md](04-Migraciones.md). Para cómo switchear esta API entre el Docker local y el proyecto remoto, ver [05-Ambientes.md](05-Ambientes.md).
 
 - **Levantar la API**: dotnet run --project api/src/Stc.Api
 
