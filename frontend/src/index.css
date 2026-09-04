@@ -411,33 +411,49 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-  color: #7a4747;
+  gap: 0.15rem;
+  font-size: 0.87rem;
 }
 
 .breadcrumb-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.15rem;
 }
 
 .breadcrumb-link {
-  color: #930f0f;
+  color: var(--red-500, #c8353d);
+  font-weight: 700;
   text-decoration: none;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 .breadcrumb-link:hover {
-  text-decoration: underline;
+  background: #fff0f0;
+  color: var(--red-700, #eb5b61);
+  transform: translateY(-1px);
+}
+
+.breadcrumb-link:active {
+  transform: translateY(0);
 }
 
 .breadcrumb-current {
-  color: #7a4747;
-  font-weight: 600;
+  color: #5b0606;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
 }
 
 .breadcrumb-separator {
   color: #d9a9a9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breadcrumb-link {
+    transition: none;
+  }
 }
 
 .crud-header {

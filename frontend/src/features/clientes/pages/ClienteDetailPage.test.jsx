@@ -91,7 +91,7 @@ describe('ClienteDetailPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Nuevo sitio/i }))
     await user.type(screen.getByLabelText('Nombre'), 'Depósito Norte')
-    await user.type(screen.getByLabelText('Direccion'), 'Ruta 8 km 45')
+    await user.type(screen.getByLabelText('Dirección'), 'Ruta 8 km 45')
     await user.click(screen.getByRole('button', { name: /Guardar sitio/i }))
 
     await waitFor(() => expect(apiClient.post).toHaveBeenCalled())
@@ -116,7 +116,7 @@ describe('ClienteDetailPage', () => {
     await user.click(screen.getByRole('button', { name: /Editar/i }))
 
     expect(screen.getByLabelText('Nombre')).toHaveValue('Edificio Central')
-    expect(screen.getByLabelText('Direccion')).toHaveValue('Av. Siempreviva 123')
+    expect(screen.getByLabelText('Dirección')).toHaveValue('Av. Siempreviva 123')
 
     await user.clear(screen.getByLabelText('Ciudad'))
     await user.type(screen.getByLabelText('Ciudad'), 'Rosario')
