@@ -4,7 +4,7 @@ public enum TipoCliente { Persona, Empresa, Consorcio }
 
 public enum TipoSitio { Edificio, Casa, Oficina, Comercio, Otro }
 
-public enum TipoActivo { Camara, Portero, CerraduraMagnetica, Otro }
+public enum TipoActivo { Camara, Portero, CerraduraMagnetica, Otro, Llavero, ControlAcceso }
 
 public enum EstadoActivo { Activo, DeBaja, EnReparacion }
 

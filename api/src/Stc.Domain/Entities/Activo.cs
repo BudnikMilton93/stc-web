@@ -15,6 +15,8 @@ public class Activo
     public string? NumeroSerie { get; set; }
     public DateOnly? FechaInstalacion { get; set; }
     public DateOnly? GarantiaHasta { get; set; }
+    public DateOnly? ProximoMantenimiento { get; set; }
+    public DateOnly? UltimaRevision { get; set; }
     public EstadoActivo Estado { get; set; } = EstadoActivo.Activo;
     public string? Notas { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
