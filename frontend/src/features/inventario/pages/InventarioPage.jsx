@@ -46,6 +46,8 @@ export function InventarioPage() {
     setOcupantes(data ?? [])
   }, [])
 
+  const tipos = Object.fromEntries(TIPOS_ACTIVO_OPTIONS().map(({ value, label }) => [value, label]))
+
   const loadActivos = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -150,7 +152,7 @@ export function InventarioPage() {
         <div>
           <p className="eyebrow">Activos</p>
           <h2>Listado global de activos</h2>
-          <p className="muted-text">Filtra por tipo, cliente, sitio y numero de serie.</p>
+          <p className="muted-text">Filtra por tipo, cliente, sitio o número de serie.</p>
         </div>
       </div>
 
@@ -193,11 +195,11 @@ export function InventarioPage() {
           </label>
 
           <label>
-            Numero de serie
+            Número de serie
             <input
               value={serieFilter}
               onChange={(e) => setSerieFilter(e.target.value)}
-              placeholder="Buscar por numero de serie"
+              placeholder="Buscar por número de serie"
             />
           </label>
         </div>
@@ -228,7 +230,7 @@ export function InventarioPage() {
               <tbody>
                 {filteredActivos.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.tipo}</td>
+                    <td>{tipos[item.tipo] || '-'}</td>
                     <td>{item.estado}</td>
                     <td>
                       {(item.marca || 'Sin marca')} / {(item.modelo || 'Sin modelo')}
