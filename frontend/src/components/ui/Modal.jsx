@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { FiX } from 'react-icons/fi'
 
-export function Modal({ open, title, onClose, children }) {
+export function Modal({ open, title, onClose, children, size }) {
   const bodyRef = useRef(null)
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function Modal({ open, title, onClose, children }) {
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
-        className="modal-card"
+        className={size ? `modal-card modal-card--${size}` : 'modal-card'}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -1368,6 +1368,30 @@ h1 {
   margin: 0;
 }
 
+.modal-card--sm {
+  width: min(420px, 100%);
+}
+
+.confirm-dialog-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.confirm-dialog-body p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.confirm-dialog-icon {
+  flex-shrink: 0;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.1rem;
+  color: #d94f4f;
+}
+
 @keyframes fadeSlide {
   from {
     opacity: 0;
