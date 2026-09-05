@@ -1,21 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import {
-  FiArchive,
-  FiCheckCircle,
-  FiCpu,
-  FiEdit2,
-  FiLock,
-  FiMapPin,
-  FiPlus,
-  FiPlusCircle,
-  FiRotateCcw,
-  FiSave,
-  FiTool,
-  FiUserPlus,
-  FiUsers,
-  FiX,
-} from 'react-icons/fi'
+import {FiArchive, FiCheckCircle, FiCpu, FiEdit2, FiLock, FiMapPin, FiPlus, FiPlusCircle, FiRotateCcw, FiSave, FiTool, FiUserPlus, FiUsers, FiX} from 'react-icons/fi'
 import { Modal } from '../../../components/ui/Modal'
 import { DataGrid } from '../../../components/ui/DataGrid'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
@@ -25,8 +10,7 @@ import { useOcupanteForm } from '../hooks/useOcupanteForm'
 import { useActivosDeUnidad } from '../hooks/useActivosDeUnidad'
 import { useActivoForm } from '../hooks/useActivoForm'
 import { isArchivedRecord } from '../utils/archiveFlag'
-
-const TIPOS_ACTIVO = ['camara', 'portero', 'cerraduraMagnetica', 'llavero', 'otro']
+import { TIPOS_ACTIVO_OPTIONS } from '../../../lib/tipoActivo'
 
 export function UnidadDetailPage() {
   const { clienteId, sitioId, unidadId } = useParams()
@@ -119,7 +103,7 @@ export function UnidadDetailPage() {
       width: 'minmax(160px, 1.4fr)',
       render: (item) => (
         <>
-          <span>{item.telefono || 'Sin telefono'}</span>
+          <span>{item.telefono || 'Sin teléfono'}</span>
           <span>{item.email || 'Sin email'}</span>
         </>
       ),
@@ -347,7 +331,7 @@ export function UnidadDetailPage() {
             <FiCpu aria-hidden="true" />
           </div>
           <div>
-            <p className="eyebrow">Llaveros activos</p>
+            <p className="eyebrow">Activos activos</p>
             <p className="entity-overview-value">{activeActivosCount}</p>
           </div>
         </div>
@@ -359,15 +343,15 @@ export function UnidadDetailPage() {
             Gestionando: <strong>{activeManager === 'ocupantes' ? 'ocupantes' : 'activos'}</strong>
           </p>
           <button type="button" className="ghost-btn minimal-btn" onClick={() => setActiveManager(null)}>
-            Cambiar gestion
+            Cambiar gestión
           </button>
         </div>
       ) : (
         <article className="crud-card management-selector">
           <div className="management-selector-heading">
-            <p className="eyebrow">Gestion de la unidad</p>
-            <h3>Que quieres administrar?</h3>
-            <p className="muted-text">Elige un modulo para trabajar de forma individual.</p>
+            <p className="eyebrow">Gestión de la unidad</p>
+            <h3>¿Qué quieres administrar?</h3>
+            <p className="muted-text">Elige un módulo para trabajar de forma individual.</p>
           </div>
           <div className="management-options">
             <button
@@ -380,7 +364,7 @@ export function UnidadDetailPage() {
               </span>
               <span className="management-option-copy">
                 <strong>Gestionar ocupantes</strong>
-                <span>Altas, edicion y bajas de las personas de esta unidad.</span>
+                <span>Altas, edición y bajas de las personas de esta unidad.</span>
               </span>
               <span className="management-option-count">{activeOcupantesCount}</span>
             </button>
@@ -394,7 +378,7 @@ export function UnidadDetailPage() {
               </span>
               <span className="management-option-copy">
                 <strong>Gestionar activos</strong>
-                <span>Inventario y asignacion de equipos a un ocupante.</span>
+                <span>Inventario y asignación de equipos a un ocupante.</span>
               </span>
               <span className="management-option-count">{activeActivosCount}</span>
             </button>
@@ -407,7 +391,7 @@ export function UnidadDetailPage() {
           <div className="section-title-row">
             <h3 className="list-title-with-icon">
               <FiUsers aria-hidden="true" />
-              Gestion de ocupantes
+              Gestión de ocupantes
             </h3>
             <button type="button" className="primary-btn minimal-btn" onClick={ocupanteForm.openCreateForm}>
               {ocupanteForm.showForm && !ocupanteForm.editingOcupanteId ? (
@@ -458,7 +442,7 @@ export function UnidadDetailPage() {
           <div className="section-title-row">
             <h3 className="list-title-with-icon">
               <FiCpu aria-hidden="true" />
-              Gestion de activos
+              Gestión de activos
             </h3>
             <button
               type="button"
@@ -508,6 +492,7 @@ export function UnidadDetailPage() {
             rows={visibleActivos}
             columns={activosColumns}
           />
+          
         </article>
       ) : null}
 
@@ -526,7 +511,7 @@ export function UnidadDetailPage() {
             />
           </label>
           <label>
-            Telefono
+            Teléfono
             <input
               value={ocupanteForm.form.telefono}
               onChange={(e) => ocupanteForm.updateField('telefono', e.target.value)}
@@ -583,9 +568,9 @@ export function UnidadDetailPage() {
           <label>
             Tipo
             <select value={activoForm.form.tipo} onChange={(e) => activoForm.updateField('tipo', e.target.value)}>
-              {TIPOS_ACTIVO.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
+              {TIPOS_ACTIVO_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -602,14 +587,14 @@ export function UnidadDetailPage() {
             />
           </label>
           <label>
-            Numero de serie
+            Número de serie
             <input
               value={activoForm.form.numero_serie}
               onChange={(e) => activoForm.updateField('numero_serie', e.target.value)}
             />
           </label>
           <label>
-            Fecha instalacion
+            Fecha instalación
             <input
               type="date"
               value={activoForm.form.fecha_instalacion}
@@ -617,7 +602,7 @@ export function UnidadDetailPage() {
             />
           </label>
           <label>
-            Garantia hasta
+            Garantía hasta
             <input
               type="date"
               value={activoForm.form.garantia_hasta}
@@ -625,7 +610,7 @@ export function UnidadDetailPage() {
             />
           </label>
           <label>
-            Ultima revision
+            Última revisión
             <input
               type="date"
               value={activoForm.form.ultima_revision}
@@ -633,7 +618,7 @@ export function UnidadDetailPage() {
             />
           </label>
           <label>
-            Proximo mantenimiento
+            Próximo mantenimiento
             <input
               type="date"
               value={activoForm.form.proximo_mantenimiento}

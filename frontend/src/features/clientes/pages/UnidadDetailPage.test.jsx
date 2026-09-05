@@ -66,12 +66,12 @@ describe('UnidadDetailPage', () => {
     mockGetRoutes()
     renderPage()
 
-    expect(await screen.findByText('Que quieres administrar?')).toBeInTheDocument()
+    expect(await screen.findByText('¿Qué quieres administrar?')).toBeInTheDocument()
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Gestionar ocupantes/i }))
 
-    expect(screen.getByText('Gestion de ocupantes')).toBeInTheDocument()
+    expect(screen.getByText('Gestión de ocupantes')).toBeInTheDocument()
   })
 
   it('bloquea el alta de activos si no hay ocupantes activos en la unidad', async () => {
@@ -79,7 +79,7 @@ describe('UnidadDetailPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await screen.findByText('Que quieres administrar?')
+    await screen.findByText('¿Qué quieres administrar?')
     await user.click(screen.getByRole('button', { name: /Gestionar activos/i }))
 
     expect(screen.getByText(/Alta de activo bloqueada/i)).toBeInTheDocument()
@@ -92,7 +92,7 @@ describe('UnidadDetailPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await screen.findByText('Que quieres administrar?')
+    await screen.findByText('¿Qué quieres administrar?')
     await user.click(screen.getByRole('button', { name: /Gestionar activos/i }))
 
     expect(screen.queryByText(/Alta de activo bloqueada/i)).not.toBeInTheDocument()
@@ -127,7 +127,7 @@ describe('UnidadDetailPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await screen.findByText('Que quieres administrar?')
+    await screen.findByText('¿Qué quieres administrar?')
     await user.click(screen.getByRole('button', { name: /Gestionar ocupantes/i }))
     await user.click(screen.getByRole('button', { name: /Nuevo ocupante/i }))
     await user.type(screen.getByLabelText('Nombre'), 'Maria Lopez')
@@ -151,7 +151,7 @@ describe('UnidadDetailPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await screen.findByText('Que quieres administrar?')
+    await screen.findByText('¿Qué quieres administrar?')
     await user.click(screen.getByRole('button', { name: /Gestionar ocupantes/i }))
     await user.click(screen.getByRole('button', { name: /Nuevo ocupante/i }))
     await user.type(screen.getByLabelText('Nombre'), 'Alguien')

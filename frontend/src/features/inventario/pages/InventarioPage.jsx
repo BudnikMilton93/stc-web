@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiClient, ApiError } from '../../../lib/apiClient'
-
-const TIPO_ACTIVO_OPTIONS = ['camara', 'portero', 'cerraduraMagnetica', 'otro']
+import { TIPO_ACTIVO_FILTER_OPTIONS } from '../../../lib/tipoActivo'
 
 export function InventarioPage() {
   const [loading, setLoading] = useState(true)
@@ -161,9 +160,9 @@ export function InventarioPage() {
             Tipo
             <select value={tipoFilter} onChange={(e) => setTipoFilter(e.target.value)}>
               <option value="">Todos</option>
-              {TIPO_ACTIVO_OPTIONS.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
+              {TIPO_ACTIVO_FILTER_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>

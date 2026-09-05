@@ -67,7 +67,7 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
     await expect(page.getByText('Ya puedes pasar al Paso 2 y dar de alta activos.')).toBeVisible()
 
     // --- Activo, asignado al ocupante recien creado ---
-    await page.getByRole('button', { name: 'Cambiar gestion' }).click()
+    await page.getByRole('button', { name: 'Cambiar gestión' }).click()
     await page.getByRole('button', { name: 'Gestionar activos' }).click()
 
     await expect(page.getByText('Alta de activo bloqueada')).toHaveCount(0)

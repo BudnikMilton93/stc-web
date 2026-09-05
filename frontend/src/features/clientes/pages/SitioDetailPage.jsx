@@ -25,8 +25,7 @@ import { useEquipamientoSitioForm } from '../hooks/useEquipamientoSitioForm'
 import { isArchivedRecord, removeArchiveFlag } from '../utils/archiveFlag'
 import { getMantenimientoStatus } from '../utils/mantenimiento'
 import { capitalize } from '../constants'
-
-const TIPOS_EQUIPAMIENTO_SITIO = ['camara', 'portero', 'controlAcceso', 'otro']
+import { TIPOS_EQUIPAMIENTO_SITIO_OPTIONS } from '../../../lib/tipoActivo'
 
 export function SitioDetailPage() {
   const { clienteId, sitioId } = useParams()
@@ -112,13 +111,13 @@ export function SitioDetailPage() {
     },
     {
       key: 'ultimaRevision',
-      header: 'Ultima revision',
+      header: 'Última revisión',
       width: 'minmax(120px, 0.9fr)',
       render: (item) => <span>{item.ultimaRevision || 'Sin registrar'}</span>,
     },
     {
       key: 'proximoMantenimiento',
-      header: 'Proximo mantenimiento',
+      header: 'Próximo mantenimiento',
       width: 'minmax(150px, 1fr)',
       render: (item) => {
         const status = getMantenimientoStatus(item.proximoMantenimiento)
@@ -135,7 +134,7 @@ export function SitioDetailPage() {
         if (status === 'proximo') {
           return (
             <span className="status-chip empty">
-              <FiAlertTriangle aria-hidden="true" /> Proximo • {item.proximoMantenimiento}
+              <FiAlertTriangle aria-hidden="true" /> Próximo • {item.proximoMantenimiento}
             </span>
           )
         }
@@ -439,7 +438,7 @@ export function SitioDetailPage() {
         </div>
 
         <p className="muted-text section-help-text">
-          Camaras, porteros y controles de acceso instalados en areas comunes del sitio, sin unidad ni ocupante
+          Cámaras, porteros y controles de acceso instalados en áreas comunes del sitio, sin unidad ni ocupante
           asignado. Se trackean instancia por instancia.
         </p>
 
@@ -516,9 +515,9 @@ export function SitioDetailPage() {
               value={equipamientoForm.tipo}
               onChange={(e) => updateEquipamientoField('tipo', e.target.value)}
             >
-              {TIPOS_EQUIPAMIENTO_SITIO.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {capitalize(tipo)}
+              {TIPOS_EQUIPAMIENTO_SITIO_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -538,14 +537,14 @@ export function SitioDetailPage() {
             />
           </label>
           <label>
-            Numero de serie
+            Número de serie
             <input
               value={equipamientoForm.numero_serie}
               onChange={(e) => updateEquipamientoField('numero_serie', e.target.value)}
             />
           </label>
           <label>
-            Fecha instalacion
+            Fecha instalación
             <input
               type="date"
               value={equipamientoForm.fecha_instalacion}
@@ -553,7 +552,7 @@ export function SitioDetailPage() {
             />
           </label>
           <label>
-            Garantia hasta
+            Garantía hasta
             <input
               type="date"
               value={equipamientoForm.garantia_hasta}
@@ -561,7 +560,7 @@ export function SitioDetailPage() {
             />
           </label>
           <label>
-            Ultima revision
+            Última revisión
             <input
               type="date"
               value={equipamientoForm.ultima_revision}
@@ -569,7 +568,7 @@ export function SitioDetailPage() {
             />
           </label>
           <label>
-            Proximo mantenimiento
+            Próximo mantenimiento
             <input
               type="date"
               value={equipamientoForm.proximo_mantenimiento}
