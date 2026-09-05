@@ -147,12 +147,12 @@ describe('SitioDetailPage', () => {
   it('da de baja una unidad embebiendo el archive-flag en notas', async () => {
     const user = userEvent.setup()
     apiClient.put.mockResolvedValue({})
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderPage()
 
     await screen.findByText('3B')
 
     await user.click(screen.getByRole('button', { name: /Dar de baja unidad 3B/i }))
+    await user.click(await screen.findByRole('button', { name: 'Dar de baja' }))
 
     await waitFor(() => expect(apiClient.put).toHaveBeenCalled())
 

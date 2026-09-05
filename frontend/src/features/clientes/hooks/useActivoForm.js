@@ -28,7 +28,7 @@ export function useActivoForm({ clienteId, sitioId, unidadId, activos, selectabl
   const [ocupanteQuery, setOcupanteQuery] = useState('')
   const [selectedOcupanteId, setSelectedOcupanteId] = useState('')
 
-  const { actionLoadingId, handleBaja, handleRestore } = useArchivableEntityActions({
+  const { actionLoadingId, handleBaja, handleRestore, bajaConfirmation, confirmBaja, cancelBaja } = useArchivableEntityActions({
     apiPath: (id) => `/activos/${id}`,
     entityLabel: 'el activo',
     getEntityName: (activo) => activo.numeroSerie || activo.tipo,
@@ -177,5 +177,8 @@ export function useActivoForm({ clienteId, sitioId, unidadId, activos, selectabl
     handleSave,
     handleBaja,
     handleRestore,
+    bajaConfirmation,
+    confirmBaja,
+    cancelBaja,
   }
 }

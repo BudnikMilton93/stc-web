@@ -16,6 +16,7 @@ import {
   FiXCircle,
 } from 'react-icons/fi'
 import { Modal } from '../../../components/ui/Modal'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { DataGrid } from '../../../components/ui/DataGrid'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
 import { useSitiosDeCliente } from '../hooks/useSitiosDeCliente'
@@ -59,6 +60,9 @@ export function ClienteDetailPage() {
     handleSave: handleSaveSitio,
     handleBaja: handleBajaSitio,
     handleRestore: handleRestoreSitio,
+    bajaConfirmation: sitioBajaConfirmation,
+    confirmBaja: confirmBajaSitio,
+    cancelBaja: cancelBajaSitio,
   } = useSitioForm(clienteId, { onSaved: reload })
 
   const sitiosColumns = [
@@ -357,6 +361,17 @@ export function ClienteDetailPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={sitioBajaConfirmation.open}
+        title="Dar de baja sitio"
+        message={`¿Dar de baja ${sitioBajaConfirmation.entityLabel} "${sitioBajaConfirmation.entityName}"? Se ocultará de la vista principal, pero podés rehabilitarlo después.`}
+        confirmLabel="Dar de baja"
+        loading={sitioBajaConfirmation.loading}
+        error={sitioBajaConfirmation.error}
+        onConfirm={() => void confirmBajaSitio()}
+        onCancel={cancelBajaSitio}
+      />
     </section>
   )
 }

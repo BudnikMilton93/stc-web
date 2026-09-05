@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {FiArchive, FiCheckCircle, FiCpu, FiEdit2, FiLock, FiMapPin, FiPlus, FiPlusCircle, FiRotateCcw, FiSave, FiTool, FiUserPlus, FiUsers, FiX} from 'react-icons/fi'
 import { Modal } from '../../../components/ui/Modal'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { DataGrid } from '../../../components/ui/DataGrid'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
 import { useUnidadDetail } from '../hooks/useUnidadDetail'
@@ -680,6 +681,28 @@ export function UnidadDetailPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={ocupanteForm.bajaConfirmation.open}
+        title="Dar de baja ocupante"
+        message={`¿Dar de baja ${ocupanteForm.bajaConfirmation.entityLabel} "${ocupanteForm.bajaConfirmation.entityName}"? Se ocultará de la vista principal, pero podés rehabilitarlo después.`}
+        confirmLabel="Dar de baja"
+        loading={ocupanteForm.bajaConfirmation.loading}
+        error={ocupanteForm.bajaConfirmation.error}
+        onConfirm={() => void ocupanteForm.confirmBaja()}
+        onCancel={ocupanteForm.cancelBaja}
+      />
+
+      <ConfirmDialog
+        open={activoForm.bajaConfirmation.open}
+        title="Dar de baja activo"
+        message={`¿Dar de baja ${activoForm.bajaConfirmation.entityLabel} "${activoForm.bajaConfirmation.entityName}"? Se ocultará de la vista principal, pero podés rehabilitarlo después.`}
+        confirmLabel="Dar de baja"
+        loading={activoForm.bajaConfirmation.loading}
+        error={activoForm.bajaConfirmation.error}
+        onConfirm={() => void activoForm.confirmBaja()}
+        onCancel={activoForm.cancelBaja}
+      />
     </section>
   )
 }

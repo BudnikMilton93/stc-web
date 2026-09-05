@@ -16,6 +16,7 @@ import {
   FiXCircle,
 } from 'react-icons/fi'
 import { Modal } from '../../../components/ui/Modal'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { DataGrid } from '../../../components/ui/DataGrid'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
 import { useUnidadesDeSitio } from '../hooks/useUnidadesDeSitio'
@@ -59,6 +60,9 @@ export function SitioDetailPage() {
     handleSave: handleSaveUnidad,
     handleBaja: handleBajaUnidad,
     handleRestore: handleRestoreUnidad,
+    bajaConfirmation: unidadBajaConfirmation,
+    confirmBaja: confirmBajaUnidad,
+    cancelBaja: cancelBajaUnidad,
   } = useUnidadForm(sitioId, { onSaved: reload })
 
   const {
@@ -86,6 +90,9 @@ export function SitioDetailPage() {
     handleSave: handleSaveEquipamiento,
     handleBaja: handleBajaEquipamiento,
     handleRestore: handleRestoreEquipamiento,
+    bajaConfirmation: equipamientoBajaConfirmation,
+    confirmBaja: confirmBajaEquipamiento,
+    cancelBaja: cancelBajaEquipamiento,
   } = useEquipamientoSitioForm({ clienteId, sitioId, equipamiento, onSaved: reloadEquipamiento })
 
   const equipamientoColumns = [
@@ -607,6 +614,28 @@ export function SitioDetailPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={unidadBajaConfirmation.open}
+        title="Dar de baja unidad"
+        message={`¿Dar de baja ${unidadBajaConfirmation.entityLabel} "${unidadBajaConfirmation.entityName}"? Se ocultará de la vista principal, pero podés rehabilitarla después.`}
+        confirmLabel="Dar de baja"
+        loading={unidadBajaConfirmation.loading}
+        error={unidadBajaConfirmation.error}
+        onConfirm={() => void confirmBajaUnidad()}
+        onCancel={cancelBajaUnidad}
+      />
+
+      <ConfirmDialog
+        open={equipamientoBajaConfirmation.open}
+        title="Dar de baja equipamiento"
+        message={`¿Dar de baja ${equipamientoBajaConfirmation.entityLabel} "${equipamientoBajaConfirmation.entityName}"? Se ocultará de la vista principal, pero podés rehabilitarlo después.`}
+        confirmLabel="Dar de baja"
+        loading={equipamientoBajaConfirmation.loading}
+        error={equipamientoBajaConfirmation.error}
+        onConfirm={() => void confirmBajaEquipamiento()}
+        onCancel={cancelBajaEquipamiento}
+      />
     </section>
   )
 }

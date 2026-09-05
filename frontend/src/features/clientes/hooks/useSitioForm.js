@@ -31,7 +31,7 @@ export function useSitioForm(clienteId, { onSaved }) {
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState(initialForm)
 
-  const { actionLoadingId, handleBaja, handleRestore } = useArchivableEntityActions({
+  const { actionLoadingId, handleBaja, handleRestore, bajaConfirmation, confirmBaja, cancelBaja } = useArchivableEntityActions({
     apiPath: (id) => `/sitios/${id}`,
     entityLabel: 'el sitio',
     getEntityName: (sitio) => sitio.nombre,
@@ -135,5 +135,8 @@ export function useSitioForm(clienteId, { onSaved }) {
     handleSave,
     handleBaja,
     handleRestore,
+    bajaConfirmation,
+    confirmBaja,
+    cancelBaja,
   }
 }

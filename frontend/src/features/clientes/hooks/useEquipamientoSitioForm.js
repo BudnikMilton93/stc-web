@@ -21,7 +21,7 @@ export function useEquipamientoSitioForm({ clienteId, sitioId, equipamiento, onS
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState(initialForm)
 
-  const { actionLoadingId, handleBaja, handleRestore } = useArchivableEntityActions({
+  const { actionLoadingId, handleBaja, handleRestore, bajaConfirmation, confirmBaja, cancelBaja } = useArchivableEntityActions({
     apiPath: (id) => `/activos/${id}`,
     entityLabel: 'el equipamiento',
     getEntityName: (item) => item.numeroSerie || item.tipo,
@@ -116,5 +116,8 @@ export function useEquipamientoSitioForm({ clienteId, sitioId, equipamiento, onS
     handleSave,
     handleBaja,
     handleRestore,
+    bajaConfirmation,
+    confirmBaja,
+    cancelBaja,
   }
 }

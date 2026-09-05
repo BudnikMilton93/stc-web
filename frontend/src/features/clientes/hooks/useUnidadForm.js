@@ -27,7 +27,7 @@ export function useUnidadForm(sitioId, { onSaved }) {
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState(initialForm)
 
-  const { actionLoadingId, handleBaja, handleRestore } = useArchivableEntityActions({
+  const { actionLoadingId, handleBaja, handleRestore, bajaConfirmation, confirmBaja, cancelBaja } = useArchivableEntityActions({
     apiPath: (id) => `/unidades/${id}`,
     entityLabel: 'la unidad',
     getEntityName: (unidad) => unidad.identificador,
@@ -126,5 +126,8 @@ export function useUnidadForm(sitioId, { onSaved }) {
     handleSave,
     handleBaja,
     handleRestore,
+    bajaConfirmation,
+    confirmBaja,
+    cancelBaja,
   }
 }

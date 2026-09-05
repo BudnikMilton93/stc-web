@@ -36,6 +36,16 @@ import { apiClient, ApiError } from '../../../lib/apiClient'
 // - setError(message): setter del estado de error del hook que consume este
 //   (se reusa el mismo `formError` que ya usa el modal de alta/edicion, en
 //   vez de duplicar un estado de error aparte para las acciones de fila).
+//
+// La baja se confirma con un dialogo propio (ver components/ui/ConfirmDialog)
+// en vez de window.confirm: `handleBaja` solo abre ese dialogo (guarda la
+// entidad en `confirmTarget`), y `confirmBaja`/`cancelBaja` lo resuelven. Esto
+// permite mostrar el error de la request en el dialogo mismo si la baja
+// falla (con window.confirm ese error no tenia donde mostrarse, ya que se
+// seteaba via `setError` sobre el modal de alta/edicion, que a esta altura
+// esta cerrado) y dejarlo abierto en estado "procesando" mientras esta en
+// vuelo. `handleRestore` no pasa por esta confirmacion: rehabilitar no oculta
+// nada, es una accion de bajo riesgo.
 export function useArchivableEntityActions({
   apiPath,
   entityLabel,
@@ -48,8 +58,10 @@ export function useArchivableEntityActions({
   setError,
 }) {
   const [actionLoadingId, setActionLoadingId] = useState('')
+  const [confirmTarget, setConfirmTarget] = useState(null)
+  const [confirmError, setConfirmError] = useState('')
 
-  const runAction = async (entity, { payload, fallbackMessage, onSuccess }) => {
+  const runAction = async (entity, { payload, fallbackMessage, onSuccess, onError }) => {
     setActionLoadingId(entity.id)
     setError?.('')
 
@@ -58,6 +70,7 @@ export function useArchivableEntityActions({
     } catch (requestError) {
       const message = requestError instanceof ApiError ? requestError.message : fallbackMessage
       setError?.(message || fallbackMessage)
+      onError?.(message || fallbackMessage)
       setActionLoadingId('')
       return
     }
@@ -66,19 +79,29 @@ export function useArchivableEntityActions({
     await onSuccess?.(entity)
   }
 
-  const handleBaja = async (entity) => {
-    const confirmed = window.confirm(
-      `Dar de baja ${entityLabel} "${getEntityName(entity)}"? Se ocultara de la vista principal.`,
-    )
+  const handleBaja = (entity) => {
+    setConfirmError('')
+    setConfirmTarget(entity)
+  }
 
-    if (!confirmed) {
+  const cancelBaja = () => {
+    setConfirmTarget(null)
+    setConfirmError('')
+  }
+
+  const confirmBaja = async () => {
+    if (!confirmTarget) {
       return
     }
 
-    await runAction(entity, {
-      payload: buildBajaPayload(entity),
+    await runAction(confirmTarget, {
+      payload: buildBajaPayload(confirmTarget),
       fallbackMessage: `No se pudo dar de baja ${entityLabel}`,
-      onSuccess: onBaja ?? onSaved,
+      onSuccess: async (entity) => {
+        setConfirmTarget(null)
+        await (onBaja ?? onSaved)?.(entity)
+      },
+      onError: setConfirmError,
     })
   }
 
@@ -89,5 +112,13 @@ export function useArchivableEntityActions({
       onSuccess: onRestore ?? onSaved,
     })
 
-  return { actionLoadingId, handleBaja, handleRestore }
+  const bajaConfirmation = {
+    open: Boolean(confirmTarget),
+    entityLabel,
+    entityName: confirmTarget ? getEntityName(confirmTarget) : '',
+    loading: Boolean(confirmTarget) && actionLoadingId === confirmTarget.id,
+    error: confirmError,
+  }
+
+  return { actionLoadingId, handleBaja, handleRestore, bajaConfirmation, confirmBaja, cancelBaja }
 }
