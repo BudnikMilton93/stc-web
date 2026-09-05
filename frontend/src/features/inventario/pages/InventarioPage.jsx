@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiClient, ApiError } from '../../../lib/apiClient'
-import { TIPO_ACTIVO_FILTER_OPTIONS } from '../../../lib/tipoActivo'
+import { TIPO_ACTIVO_FILTER_OPTIONS, TIPOS_ACTIVO_OPTIONS } from '../../../lib/tipoActivo'
 
 export function InventarioPage() {
   const [loading, setLoading] = useState(true)
@@ -46,7 +46,7 @@ export function InventarioPage() {
     setOcupantes(data ?? [])
   }, [])
 
-  const tipos = Object.fromEntries(TIPOS_ACTIVO_OPTIONS().map(({ value, label }) => [value, label]))
+  const tipos = Object.fromEntries(TIPOS_ACTIVO_OPTIONS.map(({ value, label }) => [value, label]))
 
   const loadActivos = useCallback(async () => {
     setLoading(true)

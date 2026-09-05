@@ -17,6 +17,7 @@ Contexto: el frontend terminó de migrar de Supabase directo a la API en C# (ago
 | 7 | Baja lógica de `sitios`/`unidades`/`ocupantes` vía flag de texto en `notas` | Pendiente, importante | No hay soft-delete real en el schema para estas 3 tablas; se simula escribiendo `[BAJA_LOGICA]` dentro de `notas`. Reemplazar por una columna real |
 | 8 | Falta validar pertenencia jerárquica cliente→sitio→unidad→ocupante en los endpoints CRUD | Pendiente, baja prioridad | Detectado en la revisión de seguridad del feature "equipamiento de sitio". No es IDOR explotable hoy (sistema single-admin), es integridad de datos. Patrón parejo en `ActivosEndpoints`, `SitiosEndpoints`, `UnidadesEndpoints` |
 | 9 | No hay ambiente de staging separado de producción | Pendiente, a evaluar | Un solo proyecto Supabase para todo; toda migración remota se aplica directo sobre la base que eventualmente sirve datos reales. Mitigado con el flujo documentado en [docs/arquitectura/04-Migraciones.md](../arquitectura/04-Migraciones.md) (validar en Docker local primero, backup antes de aplicar), pero no reemplaza tener un proyecto Supabase de staging real |
+| 10 | `GET /unidades` y `GET /ocupantes` sin paginación | Pendiente, a evaluar | Devuelven la tabla completa (global, no scoped por cliente) en cada request; el frontend las carga enteras para resolver joins en memoria (`InventarioPage`). Aceptable al volumen actual, revisar si el negocio crece |
 
 ## Detalle
 
@@ -78,6 +79,13 @@ Hoy existe un único proyecto Supabase para todo el sistema. No hay un ambiente 
 Se encontró en la práctica al llevar la migración `20260903120000_equipamiento_sitio.sql` a remoto: además de esa, había otras 2 migraciones (`20260827140000_narrow_service_scope.sql`, `20260901000000_usuario_unico_sin_roles.sql`) que estaban commiteadas hacía semanas pero nunca se habían aplicado en remoto — nadie se había dado cuenta hasta chequear con `supabase migration list`.
 
 Mitigación aplicada mientras tanto: se documentó un flujo paso a paso en [docs/arquitectura/04-Migraciones.md](../arquitectura/04-Migraciones.md) — validar siempre primero contra Docker local (`supabase db reset` + `dotnet test` vía Testcontainers), revisar manualmente si la migración es destructiva antes de tocar remoto, backup antes de aplicar, y comparar con `supabase migration list` antes y después del `push`. Esto reduce el margen de error pero no reemplaza tener un proyecto Supabase de staging real con datos representativos. Evaluar si vale la pena crear uno cuando el sistema empiece a operar con datos reales de producción.
+
+### 10. `GET /unidades` y `GET /ocupantes` sin paginación — Pendiente, a evaluar
+Detectado al revisar un comentario en `frontend/src/features/inventario/pages/InventarioPage.jsx`: como la API no soporta embeds/joins tipo PostgREST, esa página trae `unidades` y `ocupantes` completos una sola vez y los resuelve por id del lado del cliente para no hacer un request por fila de `activos`. Ninguno de los dos endpoints (`UnidadesEndpoints.cs`, `OcupantesEndpoints.cs`) tiene `skip`/`take` ni `page`/`pageSize` — hacen `.ToListAsync()` sin límite. Ambas tablas son globales (no hay filtro por `clienteId`; sí existen `unidades?sitioId=` y `ocupantes?unidadId=`, pero ninguno sirve para acotar por cliente).
+
+Por qué no es urgente: es el mismo patrón de "cargar la lista completa una vez" que ya usa `useClientesList.js` para `/clientes`, aceptado en el resto del código para el volumen actual (un solo negocio, no multi-tenant — realistamente decenas o cientos de clientes, no miles). El riesgo es de crecimiento, no de correctitud hoy.
+
+Solución propuesta si el volumen crece: agregar `skip`/`take` (o `page`/`pageSize`) a `GET /unidades` y `GET /ocupantes`, aplicando `.Skip().Take()` en la query de EF Core antes de traer los datos, para que el corte ocurra en la base y no en memoria. Requeriría además que `InventarioPage` deje de resolver el join completo en el cliente y pase a pedir esos datos ya filtrados o paginados según lo que la vista necesite.
 
 ## Cómo usar este documento
 
