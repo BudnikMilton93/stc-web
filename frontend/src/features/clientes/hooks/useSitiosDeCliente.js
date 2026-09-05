@@ -3,9 +3,11 @@ import { apiClient, ApiError } from '../../../lib/apiClient'
 import { isArchivedRecord } from '../utils/archiveFlag'
 
 // Carga el cliente y sus sitios, mas el conteo de unidades activas por sitio
-// (para el resumen y la columna "Departamentos" de la grilla). Tambien
-// resuelve el filtro "mostrar dados de baja" en memoria, igual que hace
-// useClientesList con la busqueda por nombre.
+// (para el resumen y la columna "Departamentos" de la grilla) y el total de
+// equipamiento de sitio activo del cliente (agregado de todos sus sitios,
+// via el filtro soloEquipamientoSitio de /activos). Tambien resuelve el
+// filtro "mostrar dados de baja" en memoria, igual que hace useClientesList
+// con la busqueda por nombre.
 export function useSitiosDeCliente(clienteId) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -14,6 +16,7 @@ export function useSitiosDeCliente(clienteId) {
   const [sitioUnidadCountMap, setSitioUnidadCountMap] = useState({})
   const [includeArchived, setIncludeArchived] = useState(false)
   const [search, setSearch] = useState('')
+  const [activeEquipamientoCount, setActiveEquipamientoCount] = useState(0)
 
   const reload = useCallback(async () => {
     if (!clienteId) {
@@ -25,11 +28,13 @@ export function useSitiosDeCliente(clienteId) {
 
     let clienteData
     let sitioRows
+    let equipamientoRows
 
     try {
-      ;[clienteData, sitioRows] = await Promise.all([
+      ;[clienteData, sitioRows, equipamientoRows] = await Promise.all([
         apiClient.get(`/clientes/${clienteId}`),
         apiClient.get(`/sitios?clienteId=${clienteId}`),
+        apiClient.get(`/activos?clienteId=${clienteId}&soloEquipamientoSitio=true`),
       ])
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 404) {
@@ -41,9 +46,12 @@ export function useSitiosDeCliente(clienteId) {
       setCliente(null)
       setSitios([])
       setSitioUnidadCountMap({})
+      setActiveEquipamientoCount(0)
       setLoading(false)
       return
     }
+
+    setActiveEquipamientoCount((equipamientoRows ?? []).filter((item) => item.estado !== 'deBaja').length)
 
     sitioRows = sitioRows ?? []
     const activeSitioIds = sitioRows.filter((item) => !isArchivedRecord(item.notas)).map((item) => item.id)
@@ -127,6 +135,7 @@ export function useSitiosDeCliente(clienteId) {
     activeSitiosCount,
     sitiosWithUnidadesCount,
     totalUnidadesCount,
+    activeEquipamientoCount,
     reload,
   }
 }

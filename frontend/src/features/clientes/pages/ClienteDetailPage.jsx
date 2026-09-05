@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import {
   FiArchive,
+  FiCamera,
   FiCheckCircle,
   FiEdit2,
   FiEye,
@@ -40,6 +41,7 @@ export function ClienteDetailPage() {
     activeSitiosCount,
     sitiosWithUnidadesCount,
     totalUnidadesCount,
+    activeEquipamientoCount,
     reload,
   } = useSitiosDeCliente(clienteId)
 
@@ -231,6 +233,15 @@ export function ClienteDetailPage() {
           <div>
             <p className="eyebrow">Departamentos totales</p>
             <p className="entity-overview-value">{totalUnidadesCount}</p>
+          </div>
+        </div>
+        <div className="entity-overview-card">
+          <div className="entity-overview-icon">
+            <FiCamera aria-hidden="true" />
+          </div>
+          <div>
+            <p className="eyebrow">Equipamiento de sitio</p>
+            <p className="entity-overview-value">{activeEquipamientoCount}</p>
           </div>
         </div>
       </article>

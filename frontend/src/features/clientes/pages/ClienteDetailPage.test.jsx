@@ -33,13 +33,16 @@ const sitiosMock = [
   },
 ]
 
-function mockGetRoutes({ sitios = sitiosMock, unidadesBySitio = {} } = {}) {
+function mockGetRoutes({ sitios = sitiosMock, unidadesBySitio = {}, equipamiento = [] } = {}) {
   apiClient.get.mockImplementation((path) => {
     if (path === '/clientes/cliente-1') {
       return Promise.resolve(clienteMock)
     }
     if (path === '/sitios?clienteId=cliente-1') {
       return Promise.resolve(sitios)
+    }
+    if (path === '/activos?clienteId=cliente-1&soloEquipamientoSitio=true') {
+      return Promise.resolve(equipamiento)
     }
     const unidadesMatch = path.match(/^\/unidades\?sitioId=(.+)$/)
     if (unidadesMatch) {
@@ -71,6 +74,7 @@ describe('ClienteDetailPage', () => {
     expect(await screen.findByText('Edificio Central')).toBeInTheDocument()
     expect(apiClient.get).toHaveBeenCalledWith('/clientes/cliente-1')
     expect(apiClient.get).toHaveBeenCalledWith('/sitios?clienteId=cliente-1')
+    expect(apiClient.get).toHaveBeenCalledWith('/activos?clienteId=cliente-1&soloEquipamientoSitio=true')
   })
 
   it('muestra el nombre y tipo del cliente en el encabezado', async () => {

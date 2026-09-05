@@ -393,6 +393,15 @@ export function SitioDetailPage() {
             <p className="entity-overview-value">{totalOcupantesCount}</p>
           </div>
         </div>
+        <div className="entity-overview-card">
+          <div className="entity-overview-icon">
+            <FiCamera aria-hidden="true" />
+          </div>
+          <div>
+            <p className="eyebrow">Equipamiento de sitio</p>
+            <p className="entity-overview-value">{activeEquipamientoCount}</p>
+          </div>
+        </div>
       </article>
 
       <article className="crud-card">
@@ -457,7 +466,6 @@ export function SitioDetailPage() {
           rows={visibleEquipamiento}
           columns={equipamientoColumns}
         />
-        <p className="muted-text small">Total activo: {activeEquipamientoCount}</p>
       </article>
 
       <Modal
