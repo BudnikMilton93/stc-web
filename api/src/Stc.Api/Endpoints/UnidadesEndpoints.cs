@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stc.Api.Services;
 using Stc.Domain.Entities;
 using Stc.Infrastructure;
 
@@ -58,6 +59,12 @@ public static class UnidadesEndpoints
             var unidad = await db.Unidades.FindAsync([id], ct);
             if (unidad is null) return Results.NotFound();
 
+            if (BajaLogicaValidator.EsTransicionABaja(unidad.Notas, request.Notas))
+            {
+                var rechazo = await BajaLogicaValidator.ValidarBajaUnidadAsync(db, id, ct);
+                if (rechazo is not null) return rechazo;
+            }
+
             unidad.Identificador = request.Identificador;
             unidad.Piso = request.Piso;
             unidad.Notas = request.Notas;
@@ -66,12 +73,6 @@ public static class UnidadesEndpoints
             if (conflicto is not null) return conflicto;
 
             return Results.Ok(new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso, unidad.Notas));
-        });
-
-        group.MapDelete("/{id:guid}", async (Guid id, StcDbContext db, CancellationToken ct) =>
-        {
-            var filas = await db.Unidades.Where(u => u.Id == id).ExecuteDeleteAsync(ct);
-            return filas == 0 ? Results.NotFound() : Results.NoContent();
         });
     }
 }

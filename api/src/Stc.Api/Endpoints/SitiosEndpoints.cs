@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stc.Api.Services;
 using Stc.Domain.Entities;
 using Stc.Domain.Enums;
 using Stc.Infrastructure;
@@ -60,6 +61,12 @@ public static class SitiosEndpoints
             var sitio = await db.Sitios.FindAsync([id], ct);
             if (sitio is null) return Results.NotFound();
 
+            if (BajaLogicaValidator.EsTransicionABaja(sitio.Notas, request.Notas))
+            {
+                var rechazo = await BajaLogicaValidator.ValidarBajaSitioAsync(db, id, ct);
+                if (rechazo is not null) return rechazo;
+            }
+
             sitio.Nombre = request.Nombre;
             sitio.Tipo = request.Tipo;
             sitio.Direccion = request.Direccion;
@@ -69,12 +76,6 @@ public static class SitiosEndpoints
             await db.SaveChangesAsync(ct);
 
             return Results.Ok(new SitioResponse(sitio.Id, sitio.ClienteId, sitio.Nombre, sitio.Tipo, sitio.Direccion, sitio.Ciudad, sitio.Notas));
-        });
-
-        group.MapDelete("/{id:guid}", async (Guid id, StcDbContext db, CancellationToken ct) =>
-        {
-            var filas = await db.Sitios.Where(s => s.Id == id).ExecuteDeleteAsync(ct);
-            return filas == 0 ? Results.NotFound() : Results.NoContent();
         });
     }
 }
