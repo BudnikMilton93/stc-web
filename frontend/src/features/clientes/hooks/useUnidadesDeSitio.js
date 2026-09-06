@@ -4,8 +4,11 @@ import { isArchivedRecord } from '../utils/archiveFlag'
 
 // Carga el sitio, el cliente padre (para el Breadcrumb) y las unidades del
 // sitio, mas el conteo de ocupantes activos por unidad (para el resumen y la
-// columna "Personas" de la grilla). Valida que el sitio pertenezca al
-// cliente de la URL, igual que hacia el componente.
+// columna "Personas" de la grilla) y el conteo de activos activos por unidad
+// (para deshabilitar preventivamente el boton "Dar de baja" de una unidad con
+// dependientes activos, ver utils/bajaBlocking.js -- misma regla que valida
+// el backend). Valida que el sitio pertenezca al cliente de la URL, igual que
+// hacia el componente.
 export function useUnidadesDeSitio(clienteId, sitioId) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -13,6 +16,7 @@ export function useUnidadesDeSitio(clienteId, sitioId) {
   const [cliente, setCliente] = useState(null)
   const [unidades, setUnidades] = useState([])
   const [unidadOcupanteCountMap, setUnidadOcupanteCountMap] = useState({})
+  const [unidadActivoCountMap, setUnidadActivoCountMap] = useState({})
   const [includeArchived, setIncludeArchived] = useState(false)
 
   const reload = useCallback(async () => {
@@ -26,12 +30,14 @@ export function useUnidadesDeSitio(clienteId, sitioId) {
     let sitioData
     let clienteData
     let unidadRows
+    let activoRows
 
     try {
-      ;[sitioData, clienteData, unidadRows] = await Promise.all([
+      ;[sitioData, clienteData, unidadRows, activoRows] = await Promise.all([
         apiClient.get(`/sitios/${sitioId}`),
         apiClient.get(`/clientes/${clienteId}`),
         apiClient.get(`/unidades?sitioId=${sitioId}`),
+        apiClient.get(`/activos?sitioId=${sitioId}`),
       ])
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 404) {
@@ -41,6 +47,7 @@ export function useUnidadesDeSitio(clienteId, sitioId) {
         setError(message || 'No se pudo cargar el sitio')
       }
       setUnidadOcupanteCountMap({})
+      setUnidadActivoCountMap({})
       setLoading(false)
       return
     }
@@ -48,9 +55,19 @@ export function useUnidadesDeSitio(clienteId, sitioId) {
     if (!sitioData || sitioData.clienteId !== clienteId) {
       setError('No se encontro el sitio solicitado para este cliente.')
       setUnidadOcupanteCountMap({})
+      setUnidadActivoCountMap({})
       setLoading(false)
       return
     }
+
+    setUnidadActivoCountMap(
+      (activoRows ?? [])
+        .filter((activo) => activo.unidadId && activo.estado !== 'deBaja')
+        .reduce((acc, activo) => {
+          acc[activo.unidadId] = (acc[activo.unidadId] ?? 0) + 1
+          return acc
+        }, {}),
+    )
 
     unidadRows = unidadRows ?? []
     const activeUnidadIds = unidadRows.filter((item) => !isArchivedRecord(item.notas)).map((item) => item.id)
@@ -78,6 +95,7 @@ export function useUnidadesDeSitio(clienteId, sitioId) {
         setSitio(sitioData)
         setUnidades(unidadRows)
         setUnidadOcupanteCountMap({})
+        setUnidadActivoCountMap({})
         setLoading(false)
         return
       }
@@ -126,6 +144,7 @@ export function useUnidadesDeSitio(clienteId, sitioId) {
     includeArchived,
     setIncludeArchived,
     unidadOcupanteCountMap,
+    unidadActivoCountMap,
     activeUnidadesCount,
     unidadesWithOcupantesCount,
     totalOcupantesCount,

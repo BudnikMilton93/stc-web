@@ -24,6 +24,7 @@ import { useUnidadForm } from '../hooks/useUnidadForm'
 import { useEquipamientoDeSitio } from '../hooks/useEquipamientoDeSitio'
 import { useEquipamientoSitioForm } from '../hooks/useEquipamientoSitioForm'
 import { isArchivedRecord, removeArchiveFlag } from '../utils/archiveFlag'
+import { buildBajaBlockedTooltip, describeBajaBlockers } from '../utils/bajaBlocking'
 import { getMantenimientoStatus } from '../utils/mantenimiento'
 import { capitalize } from '../constants'
 import { TIPOS_EQUIPAMIENTO_SITIO_OPTIONS } from '../../../lib/tipoActivo'
@@ -40,6 +41,7 @@ export function SitioDetailPage() {
     includeArchived,
     setIncludeArchived,
     unidadOcupanteCountMap,
+    unidadActivoCountMap,
     activeUnidadesCount,
     unidadesWithOcupantesCount,
     totalOcupantesCount,
@@ -286,24 +288,34 @@ export function SitioDetailPage() {
       actions: true,
       render: (unidad) => {
         const archived = isArchivedRecord(unidad.notas)
-        return archived ? (
-          <button
-            type="button"
-            className="ghost-btn minimal-btn icon-only-btn"
-            disabled={unidadActionLoadingId === unidad.id}
-            aria-label={`Rehabilitar unidad ${unidad.identificador}`}
-            title="Rehabilitar"
-            onClick={() => void handleRestoreUnidad(unidad)}
-          >
-            <FiRotateCcw aria-hidden="true" />
-          </button>
-        ) : (
+        if (archived) {
+          return (
+            <button
+              type="button"
+              className="ghost-btn minimal-btn icon-only-btn"
+              disabled={unidadActionLoadingId === unidad.id}
+              aria-label={`Rehabilitar unidad ${unidad.identificador}`}
+              title="Rehabilitar"
+              onClick={() => void handleRestoreUnidad(unidad)}
+            >
+              <FiRotateCcw aria-hidden="true" />
+            </button>
+          )
+        }
+
+        const blockers = describeBajaBlockers({
+          ocupantesActivos: unidadOcupanteCountMap[unidad.id] ?? 0,
+          activosActivos: unidadActivoCountMap[unidad.id] ?? 0,
+        })
+        const blocked = blockers.length > 0
+
+        return (
           <button
             type="button"
             className="danger-btn minimal-btn icon-only-btn"
-            disabled={unidadActionLoadingId === unidad.id}
+            disabled={blocked || unidadActionLoadingId === unidad.id}
             aria-label={`Dar de baja unidad ${unidad.identificador}`}
-            title="Dar de baja"
+            title={blocked ? buildBajaBlockedTooltip(blockers) : 'Dar de baja'}
             onClick={() => void handleBajaUnidad(unidad)}
           >
             <FiArchive aria-hidden="true" />

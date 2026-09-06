@@ -45,7 +45,12 @@ const unidadesMock = [
   },
 ]
 
-function mockGetRoutes({ unidades = unidadesMock, ocupantesByUnidad = {}, equipamiento = [] } = {}) {
+function mockGetRoutes({
+  unidades = unidadesMock,
+  ocupantesByUnidad = {},
+  equipamiento = [],
+  activosDeSitio = [],
+} = {}) {
   apiClient.get.mockImplementation((path) => {
     if (path === '/sitios/sitio-1') {
       return Promise.resolve(sitioMock)
@@ -58,6 +63,9 @@ function mockGetRoutes({ unidades = unidadesMock, ocupantesByUnidad = {}, equipa
     }
     if (path === '/activos?sitioId=sitio-1&soloEquipamientoSitio=true') {
       return Promise.resolve(equipamiento)
+    }
+    if (path === '/activos?sitioId=sitio-1') {
+      return Promise.resolve(activosDeSitio)
     }
     const ocupantesMatch = path.match(/^\/ocupantes\?unidadId=(.+)$/)
     if (ocupantesMatch) {
@@ -161,6 +169,34 @@ describe('SitioDetailPage', () => {
       piso: '3',
       notas: '[BAJA_LOGICA]',
     })
+  })
+
+  it('deshabilita "Dar de baja" y muestra el motivo cuando la unidad tiene ocupantes activos', async () => {
+    mockGetRoutes({
+      ocupantesByUnidad: {
+        'unidad-1': [{ id: 'ocupante-1', unidadId: 'unidad-1', nombre: 'Juan', notas: null }],
+      },
+    })
+    renderPage()
+
+    const boton = await screen.findByRole('button', { name: /Dar de baja unidad 3B/i })
+
+    expect(boton).toBeDisabled()
+    expect(boton).toHaveAttribute('title', 'No se puede dar de baja: tiene 1 ocupante activo.')
+  })
+
+  it('deshabilita "Dar de baja" y muestra el motivo cuando la unidad tiene activos activos', async () => {
+    mockGetRoutes({
+      activosDeSitio: [
+        { id: 'activo-1', sitioId: 'sitio-1', unidadId: 'unidad-1', estado: 'activo' },
+      ],
+    })
+    renderPage()
+
+    const boton = await screen.findByRole('button', { name: /Dar de baja unidad 3B/i })
+
+    expect(boton).toBeDisabled()
+    expect(boton).toHaveAttribute('title', 'No se puede dar de baja: tiene 1 activo activo.')
   })
 
   it('muestra el error de guardado sin cerrar el modal si falla el PUT', async () => {

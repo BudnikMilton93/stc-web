@@ -22,6 +22,7 @@ import { Breadcrumb } from '../../../components/ui/Breadcrumb'
 import { useSitiosDeCliente } from '../hooks/useSitiosDeCliente'
 import { useSitioForm } from '../hooks/useSitioForm'
 import { isArchivedRecord } from '../utils/archiveFlag'
+import { buildBajaBlockedTooltip, describeBajaBlockers } from '../utils/bajaBlocking'
 import { capitalize } from '../constants'
 
 const SITIO_TIPOS = ['Edificio', 'Casa', 'Oficina', 'Comercio', 'Otro']
@@ -39,6 +40,7 @@ export function ClienteDetailPage() {
     search,
     setSearch,
     sitioUnidadCountMap,
+    sitioActivoCountMap,
     activeSitiosCount,
     sitiosWithUnidadesCount,
     totalUnidadesCount,
@@ -135,24 +137,34 @@ export function ClienteDetailPage() {
       actions: true,
       render: (sitio) => {
         const archived = isArchivedRecord(sitio.notas)
-        return archived ? (
-          <button
-            type="button"
-            className="ghost-btn minimal-btn icon-only-btn"
-            aria-label={`Rehabilitar sitio ${sitio.nombre}`}
-            title="Rehabilitar"
-            disabled={sitioActionLoadingId === sitio.id}
-            onClick={() => void handleRestoreSitio(sitio)}
-          >
-            <FiRotateCcw aria-hidden="true" />
-          </button>
-        ) : (
+        if (archived) {
+          return (
+            <button
+              type="button"
+              className="ghost-btn minimal-btn icon-only-btn"
+              aria-label={`Rehabilitar sitio ${sitio.nombre}`}
+              title="Rehabilitar"
+              disabled={sitioActionLoadingId === sitio.id}
+              onClick={() => void handleRestoreSitio(sitio)}
+            >
+              <FiRotateCcw aria-hidden="true" />
+            </button>
+          )
+        }
+
+        const blockers = describeBajaBlockers({
+          unidadesActivas: sitioUnidadCountMap[sitio.id] ?? 0,
+          activosActivos: sitioActivoCountMap[sitio.id] ?? 0,
+        })
+        const blocked = blockers.length > 0
+
+        return (
           <button
             type="button"
             className="danger-btn minimal-btn icon-only-btn"
             aria-label={`Dar de baja sitio ${sitio.nombre}`}
-            title="Dar de baja"
-            disabled={sitioActionLoadingId === sitio.id}
+            title={blocked ? buildBajaBlockedTooltip(blockers) : 'Dar de baja'}
+            disabled={blocked || sitioActionLoadingId === sitio.id}
             onClick={() => void handleBajaSitio(sitio)}
           >
             <FiArchive aria-hidden="true" />

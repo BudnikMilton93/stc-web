@@ -3,17 +3,22 @@ import { apiClient, ApiError } from '../../../lib/apiClient'
 import { isArchivedRecord } from '../utils/archiveFlag'
 
 // Carga el cliente y sus sitios, mas el conteo de unidades activas por sitio
-// (para el resumen y la columna "Departamentos" de la grilla) y el total de
-// equipamiento de sitio activo del cliente (agregado de todos sus sitios,
-// via el filtro soloEquipamientoSitio de /activos). Tambien resuelve el
-// filtro "mostrar dados de baja" en memoria, igual que hace useClientesList
-// con la busqueda por nombre.
+// (para el resumen y la columna "Departamentos" de la grilla), el total de
+// equipamiento de sitio activo del cliente y el conteo de activos activos por
+// sitio (equipamiento directo + activos de cualquiera de sus unidades, ya que
+// `activos.sitioId` queda seteado en ambos casos -- ver ActivosEndpoints en
+// la API). Este ultimo conteo es el que permite deshabilitar preventivamente
+// el boton "Dar de baja" de un sitio con dependientes activos (ver
+// utils/bajaBlocking.js), la misma regla que valida el backend. Tambien
+// resuelve el filtro "mostrar dados de baja" en memoria, igual que hace
+// useClientesList con la busqueda por nombre.
 export function useSitiosDeCliente(clienteId) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cliente, setCliente] = useState(null)
   const [sitios, setSitios] = useState([])
   const [sitioUnidadCountMap, setSitioUnidadCountMap] = useState({})
+  const [sitioActivoCountMap, setSitioActivoCountMap] = useState({})
   const [includeArchived, setIncludeArchived] = useState(false)
   const [search, setSearch] = useState('')
   const [activeEquipamientoCount, setActiveEquipamientoCount] = useState(0)
@@ -28,13 +33,13 @@ export function useSitiosDeCliente(clienteId) {
 
     let clienteData
     let sitioRows
-    let equipamientoRows
+    let activoRows
 
     try {
-      ;[clienteData, sitioRows, equipamientoRows] = await Promise.all([
+      ;[clienteData, sitioRows, activoRows] = await Promise.all([
         apiClient.get(`/clientes/${clienteId}`),
         apiClient.get(`/sitios?clienteId=${clienteId}`),
-        apiClient.get(`/activos?clienteId=${clienteId}&soloEquipamientoSitio=true`),
+        apiClient.get(`/activos?clienteId=${clienteId}`),
       ])
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 404) {
@@ -46,12 +51,27 @@ export function useSitiosDeCliente(clienteId) {
       setCliente(null)
       setSitios([])
       setSitioUnidadCountMap({})
+      setSitioActivoCountMap({})
       setActiveEquipamientoCount(0)
       setLoading(false)
       return
     }
 
-    setActiveEquipamientoCount((equipamientoRows ?? []).filter((item) => item.estado !== 'deBaja').length)
+    activoRows = activoRows ?? []
+    const activosActivos = activoRows.filter((item) => item.estado !== 'deBaja')
+
+    setActiveEquipamientoCount(activosActivos.filter((item) => !item.unidadId && !item.ocupanteId).length)
+
+    setSitioActivoCountMap(
+      activosActivos.reduce((acc, activo) => {
+        if (!activo.sitioId) {
+          return acc
+        }
+
+        acc[activo.sitioId] = (acc[activo.sitioId] ?? 0) + 1
+        return acc
+      }, {}),
+    )
 
     sitioRows = sitioRows ?? []
     const activeSitioIds = sitioRows.filter((item) => !isArchivedRecord(item.notas)).map((item) => item.id)
@@ -79,6 +99,7 @@ export function useSitiosDeCliente(clienteId) {
         setCliente(clienteData)
         setSitios(sitioRows)
         setSitioUnidadCountMap({})
+        setSitioActivoCountMap({})
         setLoading(false)
         return
       }
@@ -132,6 +153,7 @@ export function useSitiosDeCliente(clienteId) {
     search,
     setSearch,
     sitioUnidadCountMap,
+    sitioActivoCountMap,
     activeSitiosCount,
     sitiosWithUnidadesCount,
     totalUnidadesCount,

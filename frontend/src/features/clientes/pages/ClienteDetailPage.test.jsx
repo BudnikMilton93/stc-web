@@ -33,7 +33,7 @@ const sitiosMock = [
   },
 ]
 
-function mockGetRoutes({ sitios = sitiosMock, unidadesBySitio = {}, equipamiento = [] } = {}) {
+function mockGetRoutes({ sitios = sitiosMock, unidadesBySitio = {}, activos = [] } = {}) {
   apiClient.get.mockImplementation((path) => {
     if (path === '/clientes/cliente-1') {
       return Promise.resolve(clienteMock)
@@ -41,8 +41,8 @@ function mockGetRoutes({ sitios = sitiosMock, unidadesBySitio = {}, equipamiento
     if (path === '/sitios?clienteId=cliente-1') {
       return Promise.resolve(sitios)
     }
-    if (path === '/activos?clienteId=cliente-1&soloEquipamientoSitio=true') {
-      return Promise.resolve(equipamiento)
+    if (path === '/activos?clienteId=cliente-1') {
+      return Promise.resolve(activos)
     }
     const unidadesMatch = path.match(/^\/unidades\?sitioId=(.+)$/)
     if (unidadesMatch) {
@@ -74,7 +74,29 @@ describe('ClienteDetailPage', () => {
     expect(await screen.findByText('Edificio Central')).toBeInTheDocument()
     expect(apiClient.get).toHaveBeenCalledWith('/clientes/cliente-1')
     expect(apiClient.get).toHaveBeenCalledWith('/sitios?clienteId=cliente-1')
-    expect(apiClient.get).toHaveBeenCalledWith('/activos?clienteId=cliente-1&soloEquipamientoSitio=true')
+    expect(apiClient.get).toHaveBeenCalledWith('/activos?clienteId=cliente-1')
+  })
+
+  it('deshabilita "Dar de baja" y muestra el motivo cuando el sitio tiene unidades activas', async () => {
+    mockGetRoutes({ unidadesBySitio: { 'sitio-1': [{ id: 'unidad-1', sitioId: 'sitio-1', notas: null }] } })
+    renderPage()
+
+    const boton = await screen.findByRole('button', { name: /Dar de baja sitio Edificio Central/i })
+
+    expect(boton).toBeDisabled()
+    expect(boton).toHaveAttribute('title', 'No se puede dar de baja: tiene 1 unidad activa.')
+  })
+
+  it('deshabilita "Dar de baja" y muestra el motivo cuando el sitio tiene activos activos', async () => {
+    mockGetRoutes({
+      activos: [{ id: 'activo-1', sitioId: 'sitio-1', unidadId: null, ocupanteId: null, estado: 'activo' }],
+    })
+    renderPage()
+
+    const boton = await screen.findByRole('button', { name: /Dar de baja sitio Edificio Central/i })
+
+    expect(boton).toBeDisabled()
+    expect(boton).toHaveAttribute('title', 'No se puede dar de baja: tiene 1 activo activo.')
   })
 
   it('muestra el nombre y tipo del cliente en el encabezado', async () => {
