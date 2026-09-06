@@ -8,11 +8,19 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Tokens;
 using Stc.Api.Auth;
 using Stc.Api.Endpoints;
+using Stc.Api.ExceptionHandling;
 using Stc.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+// Captura centralizada de excepciones no controladas (siempre 5xx): las
+// registra en la tabla log_errores y devuelve un ProblemDetails
+// consistente. Errores de negocio ya manejados a proposito por un endpoint
+// (BadRequest/Conflict/NotFound) no son excepciones y no pasan por aca.
+builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // Sin este converter los enums (TipoCliente, EstadoOrden, etc.) se serializan
 // como numeros, lo que no coincide con los valores en minusculas ('persona',
@@ -104,6 +112,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Primero en el pipeline: debe envolver a todo el resto de los middlewares
+// y endpoints (incluido UseCors en desarrollo) para capturar cualquier
+// excepcion no controlada que ocurra mas abajo.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -127,6 +140,29 @@ app.MapInsumosEndpoints();
 app.MapMovimientosStockEndpoints();
 app.MapLeadsEndpoints();
 app.MapUsuariosEndpoints();
+
+// Endpoint exclusivo del entorno de tests (StcApiFactory usa
+// UseEnvironment("Testing")) para poder ejercitar de punta a punta el
+// exception handler centralizado sin depender de forzar una falla real
+// en un endpoint de negocio. No existe en Development/Production.
+if (app.Environment.IsEnvironment("Testing"))
+{
+    app.MapGet("/test/throw", IResult () => throw new InvalidOperationException("boom-test"))
+        .RequireAuthorization("Activo");
+
+    // Simula un endpoint que mutó una entidad trackeada del mismo DbContext
+    // scoped y todavia no la habia guardado cuando ocurre la excepcion.
+    // Verifica que UnhandledExceptionHandler no vuelca ese cambio parcial
+    // como efecto colateral de persistir el log (ver ChangeTracker.Clear()
+    // en UnhandledExceptionHandler.RegistrarLogAsync).
+    app.MapGet("/test/throw-con-cambios-trackeados", async (Guid insumoId, StcDbContext db, CancellationToken ct) =>
+        {
+            var insumo = await db.Insumos.SingleAsync(i => i.Id == insumoId, ct);
+            insumo.StockActual = 999999;
+            throw new InvalidOperationException("boom-test-cambios-trackeados");
+        })
+        .RequireAuthorization("Activo");
+}
 
 app.Run();
 
