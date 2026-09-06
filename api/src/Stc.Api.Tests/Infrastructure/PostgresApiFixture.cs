@@ -29,6 +29,7 @@ public class PostgresApiFixture : IAsyncLifetime
         "20260724195455_schema.sql",
         "20260827140000_narrow_service_scope.sql",
         "20260903120000_equipamiento_sitio.sql",
+        "20260905000000_log_errores.sql",
     ];
 
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")

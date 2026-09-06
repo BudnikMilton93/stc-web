@@ -18,6 +18,7 @@ public class StcDbContext(DbContextOptions<StcDbContext> options) : DbContext(op
     public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>();
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<Adjunto> Adjuntos => Set<Adjunto>();
+    public DbSet<LogError> LogsError => Set<LogError>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
