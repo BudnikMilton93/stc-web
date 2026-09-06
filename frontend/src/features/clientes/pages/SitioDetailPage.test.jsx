@@ -67,9 +67,8 @@ function mockGetRoutes({
     if (path === '/activos?sitioId=sitio-1') {
       return Promise.resolve(activosDeSitio)
     }
-    const ocupantesMatch = path.match(/^\/ocupantes\?unidadId=(.+)$/)
-    if (ocupantesMatch) {
-      return Promise.resolve(ocupantesByUnidad[ocupantesMatch[1]] ?? [])
+    if (path === '/ocupantes?sitioId=sitio-1') {
+      return Promise.resolve(Object.values(ocupantesByUnidad).flat())
     }
     return Promise.reject(new Error(`GET no mockeado: ${path}`))
   })

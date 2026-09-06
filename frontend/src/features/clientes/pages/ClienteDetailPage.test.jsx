@@ -44,9 +44,8 @@ function mockGetRoutes({ sitios = sitiosMock, unidadesBySitio = {}, activos = []
     if (path === '/activos?clienteId=cliente-1') {
       return Promise.resolve(activos)
     }
-    const unidadesMatch = path.match(/^\/unidades\?sitioId=(.+)$/)
-    if (unidadesMatch) {
-      return Promise.resolve(unidadesBySitio[unidadesMatch[1]] ?? [])
+    if (path === '/unidades?clienteId=cliente-1') {
+      return Promise.resolve(Object.values(unidadesBySitio).flat())
     }
     return Promise.reject(new Error(`GET no mockeado: ${path}`))
   })

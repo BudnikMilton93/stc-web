@@ -19,11 +19,28 @@ export function useUnidadDetail(clienteId, sitioId, unidadId) {
     setLoading(true)
     setError('')
 
-    let unidadData
+    // sitioId/clienteId vienen de la URL, no del resultado de /unidades/:id,
+    // asi que las tres consultas son independientes entre si y se piden todas
+    // de una (Promise.allSettled, para poder seguir distinguiendo cual fallo
+    // y dar el mensaje de error correspondiente) en vez de esperar la unidad
+    // primero: contra el pooler remoto de Supabase cada round trip pesa
+    // varios cientos de ms, asi que evitar esa espera secuencial es la
+    // principal palanca de latencia percibida en esta pantalla. Si la unidad
+    // no existe, se cancelan sitio/cliente (todavia en vuelo en el caso
+    // comun) para no completarlas al pedo -- se pierde el descarte
+    // silencioso que tenia el codigo secuencial de antes.
+    const abortSitioCliente = new AbortController()
+    const unidadPromise = apiClient.get(`/unidades/${unidadId}`)
+    unidadPromise.catch(() => abortSitioCliente.abort())
 
-    try {
-      unidadData = await apiClient.get(`/unidades/${unidadId}`)
-    } catch (requestError) {
+    const [unidadResult, sitioResult, clienteResult] = await Promise.allSettled([
+      unidadPromise,
+      apiClient.get(`/sitios/${sitioId}`, { signal: abortSitioCliente.signal }),
+      apiClient.get(`/clientes/${clienteId}`, { signal: abortSitioCliente.signal }),
+    ])
+
+    if (unidadResult.status === 'rejected') {
+      const requestError = unidadResult.reason
       if (requestError instanceof ApiError && requestError.status === 404) {
         setError('No se encontro la unidad solicitada para este sitio.')
       } else {
@@ -34,24 +51,21 @@ export function useUnidadDetail(clienteId, sitioId, unidadId) {
       return
     }
 
-    if (!unidadData || unidadData.sitioId !== sitioId) {
-      setError('No se encontro la unidad solicitada para este sitio.')
+    if (sitioResult.status === 'rejected' || clienteResult.status === 'rejected') {
+      const requestError = sitioResult.status === 'rejected' ? sitioResult.reason : clienteResult.reason
+      const message =
+        requestError instanceof ApiError ? requestError.message : 'No se pudo cargar la informacion de la unidad'
+      setError(message || 'No se pudo cargar la informacion de la unidad')
       setLoading(false)
       return
     }
 
-    let sitioData
-    let clienteData
+    const unidadData = unidadResult.value
+    const sitioData = sitioResult.value
+    const clienteData = clienteResult.value
 
-    try {
-      ;[sitioData, clienteData] = await Promise.all([
-        apiClient.get(`/sitios/${sitioId}`),
-        apiClient.get(`/clientes/${clienteId}`),
-      ])
-    } catch (requestError) {
-      const message =
-        requestError instanceof ApiError ? requestError.message : 'No se pudo cargar la informacion de la unidad'
-      setError(message || 'No se pudo cargar la informacion de la unidad')
+    if (!unidadData || unidadData.sitioId !== sitioId) {
+      setError('No se encontro la unidad solicitada para este sitio.')
       setLoading(false)
       return
     }

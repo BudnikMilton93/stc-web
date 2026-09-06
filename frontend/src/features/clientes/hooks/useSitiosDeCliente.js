@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiClient, ApiError } from '../../../lib/apiClient'
+import { countActiveByParent } from '../utils/countActiveByParent'
 import { isArchivedRecord } from '../utils/archiveFlag'
 
 // Carga el cliente y sus sitios, mas el conteo de unidades activas por sitio
@@ -31,17 +32,25 @@ export function useSitiosDeCliente(clienteId) {
     setLoading(true)
     setError('')
 
-    let clienteData
-    let sitioRows
-    let activoRows
+    // Las cuatro consultas son independientes entre si (ninguna depende del
+    // resultado de otra) y se piden todas de una, no en oleadas sucesivas:
+    // contra el pooler remoto de Supabase cada round trip pesa varios
+    // cientos de ms, asi que evitar oleadas es la principal palanca de
+    // latencia percibida en esta pantalla. Se usa allSettled (en vez de
+    // Promise.all) porque el fetch de unidades es secundario -- si falla
+    // solo el, la pantalla igual puede mostrar cliente/sitios/activos con
+    // un aviso puntual, en vez de tirar todo por un dato no critico.
+    const [clienteResult, sitioResult, activoResult, unidadResult] = await Promise.allSettled([
+      apiClient.get(`/clientes/${clienteId}`),
+      apiClient.get(`/sitios?clienteId=${clienteId}`),
+      apiClient.get(`/activos?clienteId=${clienteId}`),
+      apiClient.get(`/unidades?clienteId=${clienteId}`),
+    ])
 
-    try {
-      ;[clienteData, sitioRows, activoRows] = await Promise.all([
-        apiClient.get(`/clientes/${clienteId}`),
-        apiClient.get(`/sitios?clienteId=${clienteId}`),
-        apiClient.get(`/activos?clienteId=${clienteId}`),
-      ])
-    } catch (requestError) {
+    const criticalRejection = [clienteResult, sitioResult, activoResult].find((r) => r.status === 'rejected')
+
+    if (criticalRejection) {
+      const requestError = criticalRejection.reason
       if (requestError instanceof ApiError && requestError.status === 404) {
         setError('No se encontro el cliente solicitado.')
       } else {
@@ -57,7 +66,9 @@ export function useSitiosDeCliente(clienteId) {
       return
     }
 
-    activoRows = activoRows ?? []
+    const clienteData = clienteResult.value
+    const sitioRows = sitioResult.value ?? []
+    const activoRows = activoResult.value ?? []
     const activosActivos = activoRows.filter((item) => item.estado !== 'deBaja')
 
     setActiveEquipamientoCount(activosActivos.filter((item) => !item.unidadId && !item.ocupanteId).length)
@@ -73,41 +84,20 @@ export function useSitiosDeCliente(clienteId) {
       }, {}),
     )
 
-    sitioRows = sitioRows ?? []
-    const activeSitioIds = sitioRows.filter((item) => !isArchivedRecord(item.notas)).map((item) => item.id)
+    const activeSitioIds = new Set(sitioRows.filter((item) => !isArchivedRecord(item.notas)).map((item) => item.id))
 
-    let unidadCountMap = {}
-
-    if (activeSitioIds.length > 0) {
-      try {
-        const unidadesPorSitio = await Promise.all(
-          activeSitioIds.map((sitioId) => apiClient.get(`/unidades?sitioId=${sitioId}`)),
-        )
-
-        unidadCountMap = unidadesPorSitio.flat().reduce((acc, unidad) => {
-          if (isArchivedRecord(unidad.notas)) {
-            return acc
-          }
-
-          acc[unidad.sitioId] = (acc[unidad.sitioId] ?? 0) + 1
-          return acc
-        }, {})
-      } catch (requestError) {
-        const message =
-          requestError instanceof ApiError ? requestError.message : 'No se pudo validar el estado de unidades'
-        setError(message || 'No se pudo validar el estado de unidades')
-        setCliente(clienteData)
-        setSitios(sitioRows)
-        setSitioUnidadCountMap({})
-        setSitioActivoCountMap({})
-        setLoading(false)
-        return
-      }
+    if (unidadResult.status === 'rejected') {
+      const requestError = unidadResult.reason
+      const message =
+        requestError instanceof ApiError ? requestError.message : 'No se pudo validar el estado de unidades'
+      setError(message || 'No se pudo validar el estado de unidades')
+      setSitioUnidadCountMap({})
+    } else {
+      setSitioUnidadCountMap(countActiveByParent(unidadResult.value, 'sitioId', activeSitioIds))
     }
 
     setCliente(clienteData)
     setSitios(sitioRows)
-    setSitioUnidadCountMap(unidadCountMap)
     setLoading(false)
   }, [clienteId])
 
