@@ -46,7 +46,8 @@ public static class UnidadesEndpoints
             };
 
             db.Unidades.Add(unidad);
-            await db.SaveChangesAsync(ct);
+            var conflicto = await db.TrySaveChangesAsync(ct);
+            if (conflicto is not null) return conflicto;
 
             return Results.Created($"/unidades/{unidad.Id}",
                 new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso, unidad.Notas));
@@ -61,7 +62,8 @@ public static class UnidadesEndpoints
             unidad.Piso = request.Piso;
             unidad.Notas = request.Notas;
 
-            await db.SaveChangesAsync(ct);
+            var conflicto = await db.TrySaveChangesAsync(ct);
+            if (conflicto is not null) return conflicto;
 
             return Results.Ok(new UnidadResponse(unidad.Id, unidad.SitioId, unidad.Identificador, unidad.Piso, unidad.Notas));
         });

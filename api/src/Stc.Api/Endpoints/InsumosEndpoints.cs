@@ -47,7 +47,8 @@ public static class InsumosEndpoints
             };
 
             db.Insumos.Add(insumo);
-            await db.SaveChangesAsync(ct);
+            var conflicto = await db.TrySaveChangesAsync(ct);
+            if (conflicto is not null) return conflicto;
 
             return Results.Created($"/insumos/{insumo.Id}",
                 new InsumoResponse(insumo.Id, insumo.Nombre, insumo.Categoria, insumo.Sku, insumo.Unidad, insumo.StockActual, insumo.StockMinimo, insumo.PrecioCosto, insumo.PrecioVenta));
@@ -66,7 +67,8 @@ public static class InsumosEndpoints
             insumo.PrecioCosto = request.PrecioCosto;
             insumo.PrecioVenta = request.PrecioVenta;
 
-            await db.SaveChangesAsync(ct);
+            var conflicto = await db.TrySaveChangesAsync(ct);
+            if (conflicto is not null) return conflicto;
 
             return Results.Ok(new InsumoResponse(insumo.Id, insumo.Nombre, insumo.Categoria, insumo.Sku, insumo.Unidad, insumo.StockActual, insumo.StockMinimo, insumo.PrecioCosto, insumo.PrecioVenta));
         });
