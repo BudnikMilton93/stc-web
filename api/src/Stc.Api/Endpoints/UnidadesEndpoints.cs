@@ -11,10 +11,18 @@ public static class UnidadesEndpoints
     {
         var group = app.MapGroup("/unidades").RequireAuthorization("Activo");
 
-        group.MapGet("/", async (Guid? sitioId, StcDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (Guid? sitioId, Guid? clienteId, StcDbContext db, CancellationToken ct) =>
         {
             var query = db.Unidades.AsNoTracking().AsQueryable();
             if (sitioId is not null) query = query.Where(u => u.SitioId == sitioId);
+            // Trae de una sola vez las unidades de todos los sitios de un cliente,
+            // en vez de que el frontend tenga que iterar sitio por sitio. A diferencia
+            // de Activo (que desnormaliza ClienteId directo en la fila para este mismo
+            // tipo de filtro), Unidad no tiene esa columna -- agregarla implicaria una
+            // migracion de schema para un filtro puntual. Se resuelve con un join por
+            // navegacion en su lugar; sostenido por el indice idx_sitios_cliente
+            // (supabase/migrations/20260724195455_schema.sql), sin costo de scan.
+            if (clienteId is not null) query = query.Where(u => u.Sitio.ClienteId == clienteId);
 
             var unidades = await query
                 .OrderBy(u => u.Identificador)

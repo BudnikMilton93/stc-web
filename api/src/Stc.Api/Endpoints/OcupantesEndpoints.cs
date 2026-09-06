@@ -10,10 +10,16 @@ public static class OcupantesEndpoints
     {
         var group = app.MapGroup("/ocupantes").RequireAuthorization("Activo");
 
-        group.MapGet("/", async (Guid? unidadId, StcDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (Guid? unidadId, Guid? sitioId, StcDbContext db, CancellationToken ct) =>
         {
             var query = db.Ocupantes.AsNoTracking().AsQueryable();
             if (unidadId is not null) query = query.Where(o => o.UnidadId == unidadId);
+            // Trae de una sola vez los ocupantes de todas las unidades de un sitio,
+            // en vez de que el frontend tenga que iterar unidad por unidad. Mismo
+            // trade-off que en UnidadesEndpoints: join por navegacion en vez de una
+            // columna SitioId desnormalizada, sostenido por idx_unidades_sitio
+            // (supabase/migrations/20260724195455_schema.sql).
+            if (sitioId is not null) query = query.Where(o => o.Unidad.SitioId == sitioId);
 
             var ocupantes = await query
                 .OrderBy(o => o.Nombre)
