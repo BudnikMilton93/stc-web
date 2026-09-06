@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiClient, ApiError } from '../../../lib/apiClient'
 import { TIPO_ACTIVO_FILTER_OPTIONS, TIPOS_ACTIVO_OPTIONS } from '../../../lib/tipoActivo'
+import { ESTADO_ACTIVO_FILTER_OPTIONS, estadoActivoLabel } from '../../../lib/estadoActivo'
 
 export function InventarioPage() {
   const [loading, setLoading] = useState(true)
@@ -13,6 +14,7 @@ export function InventarioPage() {
   const [activos, setActivos] = useState([])
 
   const [tipoFilter, setTipoFilter] = useState('')
+  const [estadoFilter, setEstadoFilter] = useState('')
   const [clienteFilter, setClienteFilter] = useState('')
   const [sitioFilter, setSitioFilter] = useState('')
   const [serieFilter, setSerieFilter] = useState('')
@@ -138,13 +140,17 @@ export function InventarioPage() {
         return false
       }
 
+      if (estadoFilter && item.estado !== estadoFilter) {
+        return false
+      }
+
       if (serie && !(item.numeroSerie ?? '').toLowerCase().includes(serie)) {
         return false
       }
 
       return true
     })
-  }, [activos, serieFilter, tipoFilter])
+  }, [activos, estadoFilter, serieFilter, tipoFilter])
 
   return (
     <section className="crud-shell">
@@ -152,7 +158,7 @@ export function InventarioPage() {
         <div>
           <p className="eyebrow">Activos</p>
           <h2>Listado global de activos</h2>
-          <p className="muted-text">Filtra por tipo, cliente, sitio o número de serie.</p>
+          <p className="muted-text">Filtra por tipo, estado, cliente, sitio o número de serie.</p>
         </div>
       </div>
 
@@ -163,6 +169,18 @@ export function InventarioPage() {
             <select value={tipoFilter} onChange={(e) => setTipoFilter(e.target.value)}>
               <option value="">Todos</option>
               {TIPO_ACTIVO_FILTER_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Estado
+            <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}>
+              <option value="">Todos</option>
+              {ESTADO_ACTIVO_FILTER_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -231,7 +249,7 @@ export function InventarioPage() {
                 {filteredActivos.map((item) => (
                   <tr key={item.id}>
                     <td>{tipos[item.tipo] || '-'}</td>
-                    <td>{item.estado}</td>
+                    <td>{estadoActivoLabel(item.estado)}</td>
                     <td>
                       {(item.marca || 'Sin marca')} / {(item.modelo || 'Sin modelo')}
                     </td>

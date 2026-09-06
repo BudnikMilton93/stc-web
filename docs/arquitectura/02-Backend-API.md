@@ -47,6 +47,17 @@ Mecanismo:
 2. La API valida ese JWT contra las **JWT Signing Keys** del proyecto (claves públicas rotables — Supabase migró de un secreto HS256 fijo a este esquema). Se descargan del endpoint JWKS del proyecto y se cachean con renovación automática (`Auth/JwksRetriever.cs` + `ConfigurationManager<JsonWebKeySet>` en `Program.cs`). No hay ningún secreto de JWT que gestionar.
 3. `Auth/CurrentUserEnrichmentMiddleware.cs` toma el `sub` (auth id) del token, busca el registro correspondiente en `usuarios`, y agrega los claims `activo`/`usuario_id` que consume la policy `Activo` y los endpoints que necesitan el id del usuario actual.
 
+## Manejo de errores no controlados
+
+`ExceptionHandling/UnhandledExceptionHandler.cs` (un `IExceptionHandler`, registrado con `AddExceptionHandler`/`UseExceptionHandler`) es el **primer middleware del pipeline** en `Program.cs` — envuelve a todo el resto (`UseCors`, `UseHttpsRedirection`, `UseRateLimiter`, `UseAuthentication`, `CurrentUserEnrichmentMiddleware`, `UseAuthorization`) para capturar cualquier excepción no controlada que ocurra más abajo. Solo intercepta excepciones: un error de negocio ya manejado por un endpoint (`BadRequest`/`Conflict`/`NotFound`) nunca llega acá.
+
+- Persiste la excepción en la tabla `log_errores` (timestamp, ruta, método HTTP, status code, `usuario_id` nullable vía el claim que agrega `CurrentUserEnrichmentMiddleware`, tipo de excepción, mensaje, stack trace, query string — deliberadamente **sin** el body del request, puede traer datos sensibles de clientes/contactos/ocupantes) y devuelve un `ProblemDetails` 500 genérico, sin exponer detalles internos al cliente.
+- Detalle no obvio: `AddExceptionHandler<T>()` registra `IExceptionHandler` como Singleton, así que el handler no inyecta `StcDbContext` (scoped) por constructor — sería una "captive dependency". Lo resuelve por request desde `httpContext.RequestServices` dentro de `TryHandleAsync`.
+- Antes de guardar el log llama a `db.ChangeTracker.Clear()`: el `DbContext` scoped del request que falló puede traer entidades trackeadas con cambios no guardados por el endpoint, y no queremos persistirlos como efecto colateral de loguear el error.
+- `Endpoints/DbSaveExtensions.cs` (`TrySaveChangesAsync`) convierte violaciones de constraint único (`DbUpdateException`/`PostgresException` `23505`) en un `409 Conflict` explícito antes de que lleguen mal clasificadas como error técnico al handler central. Aplicada en `InsumosEndpoints.cs` y `UnidadesEndpoints.cs` (POST/PUT).
+- Sin política de retención ni endpoint de lectura: el consumo es revisión manual vía SQL directo contra `log_errores` (migración `supabase/migrations/20260905000000_log_errores.sql`, sin RLS — la escribe/lee solo la API). No es auditoría de negocio ni logging del lado frontend.
+- En `Program.cs`, bajo `IsEnvironment("Testing")`, hay dos endpoints de test-only para ejercitar el handler: `/test/throw` (requiere auth `Activo`) y `/test/throw-con-cambios-trackeados`.
+
 ## Acceso a datos
 
 - `Stc.Infrastructure/StcDbContext.cs` — un `DbContext` con una configuración Fluent API por tabla (`Configurations/*.cs`), replicando 1:1 las relaciones y `DeleteBehavior` (cascade/restrict/set null) del schema SQL original.

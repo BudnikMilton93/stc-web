@@ -855,6 +855,8 @@ h1 {
 .crud-form textarea,
 .filter-grid input,
 .filter-grid select {
+  width: 100%;
+  min-width: 0;
   border: 1px solid #e8bcbc;
   border-radius: 10px;
   padding: 0.62rem 0.72rem;
@@ -1287,7 +1289,7 @@ h1 {
 .filter-grid {
   display: grid;
   gap: 0.7rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   margin-bottom: 0.9rem;
 }
 

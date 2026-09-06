@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import {FiArchive, FiCheckCircle, FiCpu, FiEdit2, FiLock, FiMapPin, FiPlus, FiPlusCircle, FiRotateCcw, FiSave, FiTool, FiUserPlus, FiUsers, FiX} from 'react-icons/fi'
+import {FiArchive, FiCheckCircle, FiCpu, FiEdit2, FiLock, FiMapPin, FiPlus, FiRotateCcw, FiSave, FiTool, FiUserPlus, FiUsers, FiX} from 'react-icons/fi'
 import { Modal } from '../../../components/ui/Modal'
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { DataGrid } from '../../../components/ui/DataGrid'
@@ -58,17 +58,19 @@ export function UnidadDetailPage() {
     onSaved: reloadActivos,
   })
 
+  const activosTiposMap = Object.fromEntries(TIPOS_ACTIVO_OPTIONS.map((option) => [option.value, option.label]))
+
   const ocupanteForm = useOcupanteForm(unidadId, {
     onSaved: async (data) => {
       await reloadOcupantes()
       if (data?.id) {
-        activoForm.pickOcupante(data.id, data.nombre)
+        activoForm.pickOcupante(data.id)
       }
     },
     onArchived: async (ocupante) => {
       await reloadOcupantes()
       if (activoForm.selectedOcupanteId === ocupante.id) {
-        activoForm.updateOcupanteQuery('')
+        activoForm.pickOcupante('')
       }
     },
   })
@@ -187,7 +189,7 @@ export function UnidadDetailPage() {
       primary: true,
       render: (item) => (
         <>
-          <strong>{item.tipo}</strong>
+          <strong>{activosTiposMap[item.tipo]}</strong>
           <span>
             {item.marca || 'Sin marca'} • {item.modelo || 'Sin modelo'}
           </span>
@@ -464,28 +466,30 @@ export function UnidadDetailPage() {
             <FiTool aria-hidden="true" />
             Cada activo debe quedar asociado a un ocupante existente de esta unidad.
           </p>
+          
+          <div className="form-footer">
+            {activoForm.isFormLocked ? (
+              <div className="step-warning-box" role="status" aria-live="polite">
+                <p>
+                  <FiLock aria-hidden="true" />
+                  Alta de activo bloqueada: primero debes completar el alta de al menos 1 ocupante.
+                </p>
+                <button type="button" className="ghost-btn minimal-btn" onClick={goToOcupantesForm}>
+                  <FiUserPlus aria-hidden="true" />
+                  Ir a alta de ocupante
+                </button>
+              </div>
+            ) : null}
 
-          {activoForm.isFormLocked ? (
-            <div className="step-warning-box" role="status" aria-live="polite">
-              <p>
-                <FiLock aria-hidden="true" />
-                Alta de activo bloqueada: primero debes completar el alta de al menos 1 ocupante.
-              </p>
-              <button type="button" className="ghost-btn minimal-btn" onClick={goToOcupantesForm}>
-                <FiUserPlus aria-hidden="true" />
-                Ir a alta de ocupante
-              </button>
-            </div>
-          ) : null}
-
-          <label className="inline-check">
-            <input
-              type="checkbox"
-              checked={includeInactiveActivos}
-              onChange={(event) => setIncludeInactiveActivos(event.target.checked)}
-            />
-            Mostrar activos dados de baja
-          </label>
+            <label className="inline-check">
+              <input
+                type="checkbox"
+                checked={includeInactiveActivos}
+                onChange={(event) => setIncludeInactiveActivos(event.target.checked)}
+              />
+              Mostrar activos dados de baja
+            </label>        
+          </div>      
 
           <DataGrid
             ariaLabel="Activos de la unidad"
@@ -627,40 +631,21 @@ export function UnidadDetailPage() {
             />
           </label>
 
-          <div className="span-2 autocomplete-box">
-            <label htmlFor="ocupante-autocomplete">Ocupante responsable (autocomplete de esta unidad)</label>
-            <input
-              id="ocupante-autocomplete"
-              value={activoForm.ocupanteQuery}
-              onChange={(e) => activoForm.updateOcupanteQuery(e.target.value)}
-              placeholder="Buscar ocupante existente"
-            />
-            {activoForm.selectedOcupante ? (
-              <p className="selection-pill">Seleccionado: {activoForm.selectedOcupante.nombre}</p>
-            ) : (
-              <p className="muted-text">Selecciona un ocupante de la lista para poder guardar el activo.</p>
-            )}
-            <div className="autocomplete-list" role="listbox" aria-label="Ocupantes sugeridos">
-              {activoForm.filteredOcupantes.slice(0, 8).map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  className="autocomplete-option"
-                  onClick={() => activoForm.pickOcupante(item.id, item.nombre)}
-                >
+          <label className="span-2">
+            Ocupante responsable
+            <select
+              value={activoForm.selectedOcupanteId}
+              onChange={(e) => activoForm.pickOcupante(e.target.value)}
+            >
+              <option value="">Selecciona un ocupante</option>
+              {selectableOcupantes.map((item) => (
+                <option key={item.id} value={item.id}>
                   {item.nombre}
                   {item.esTitular ? ' (titular)' : ''}
-                </button>
+                </option>
               ))}
-              {activoForm.filteredOcupantes.length === 0 ? (
-                <p className="muted-text small">No hay coincidencias. Crea un ocupante nuevo.</p>
-              ) : null}
-            </div>
-            <button type="button" className="ghost-btn minimal-btn" onClick={goToOcupantesForm}>
-              <FiPlusCircle aria-hidden="true" />
-              Crear ocupante nuevo
-            </button>
-          </div>
+            </select>
+          </label>
 
           <label className="span-2">
             Notas
