@@ -220,16 +220,16 @@ h1 {
 .login-form label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #e0cccf;
+  color: var(--text-muted);
 }
 
 .login-form input {
-  border: 1px solid #5d4a50;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem 0.8rem;
   font: inherit;
   color: var(--ink);
-  background: #1c1b1e;
+  background: var(--surface-muted);
 }
 
 .login-form input:focus {
@@ -272,16 +272,58 @@ h1 {
   font-weight: 600;
 }
 
-.auth-shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px 1fr;
+.auth-shell,
+body[data-theme='light'] {
+  --paper: #fdf3f3;
+  --ink: #3a1f23;
+  --red-900: #7a1620;
+  --text-muted: #7a5559;
+  --surface: #ffffff;
+  --surface-raised: #fff7f7;
+  --surface-muted: #fdeeee;
+  --border: #f0d5d5;
 }
 
+.auth-shell[data-theme='dark'],
+body[data-theme='dark'] {
+  --paper: #18171a;
+  --ink: #f3e8e9;
+  --red-900: #ffc1c3;
+  --text-muted: #c7b4b7;
+  --surface: #242226;
+  --surface-raised: #2d2a30;
+  --surface-muted: #201e22;
+  --border: #4d4147;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/*
+ * Sidebar flotante: fixed (no forma parte del flujo/grid), asi que no le
+ * afecta el alto de las grillas de contenido y nunca necesita su propio
+ * scroll de pagina. .auth-main compensa con margin-left (ver mas abajo y
+ * los breakpoints) el ancho que la sidebar ocupa en cada estado.
+ */
 .sidebar {
-  border-right: 1px solid #efc8c8;
+  position: fixed;
+  top: 1.25rem;
+  left: 1rem;
+  width: 240px;
+  height: calc(100vh - 2.5rem);
+  border: 1px solid #efc8c8;
+  border-radius: 24px;
   background: linear-gradient(180deg, #fff8f8, #fff1f1);
-  padding: 1.2rem;
+  box-shadow: 0 20px 45px rgba(147, 15, 15, 0.14);
+  padding: 1.4rem 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 50;
+  transition: width 220ms ease, padding 220ms ease;
 }
 
 .sidebar-title {
@@ -290,6 +332,11 @@ h1 {
   font-family: 'Barlow', sans-serif;
   font-size: 1.4rem;
   font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  max-height: 2.2rem;
+  transition: opacity 180ms ease, max-height 180ms ease, margin 180ms ease;
 }
 
 .sidebar-nav {
@@ -300,7 +347,6 @@ h1 {
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
   text-decoration: none;
   color: #6f3737;
   padding: 0.7rem 0.9rem;
@@ -337,21 +383,82 @@ h1 {
   background: linear-gradient(135deg, #57151d, #b52d37);
 }
 
+/* Texto de nav-links y botones de accion del sidebar: colapsan con un fade
+   animado (opacity + max-width), no con display:none, para que el pasaje a
+   solo-iconos (breakpoint tablet) y viceversa se vea como una transicion. */
+.sidebar-link-label,
+.sidebar-action-label {
+  display: inline-block;
+  margin-left: 0.65rem;
+  max-width: 160px;
+  opacity: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 180ms ease, max-width 180ms ease, margin-left 180ms ease;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sidebar-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e2aaaa;
+  background: #fff;
+  color: var(--red-700);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.sidebar-action-btn:hover {
+  background: #fff7f7;
+  transform: translateY(-1px);
+}
+
 .auth-main {
   display: grid;
   grid-template-rows: auto 1fr;
   min-width: 0;
+  min-height: 100vh;
+  margin-left: calc(240px + 2rem);
+  transition: margin-left 220ms ease;
 }
 
 .auth-header {
   border-bottom: 1px solid #efcfcf;
-  background: rgba(255, 253, 248, 0.92);
+  /* background: rgba(255, 253, 248, 0.92); */
   backdrop-filter: blur(6px);
   padding: 1rem 1.3rem;
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   align-items: center;
+}
+
+.auth-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.brand-logo.header-logo {
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.22));
 }
 
 .auth-header strong {
@@ -366,18 +473,29 @@ h1 {
   font-size: 0.85rem;
 }
 
-.logout-btn {
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #e2aaaa;
   background: #fff;
   color: var(--red-700);
-  font-weight: 700;
   border-radius: 10px;
-  padding: 0.6rem 0.95rem;
+  padding: 0.5rem 0.6rem;
+  font-size: 1.1rem;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-.logout-btn:hover {
+.hamburger-btn:hover {
   background: #fff7f7;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 10, 12, 0.45);
+  z-index: 205;
 }
 
 .auth-content {
@@ -1358,7 +1476,7 @@ h1 {
 
 .modal-header h3 {
   margin: 0;
-  color: #ffd3d5;
+  color: var(--red-900);
   font-family: 'Barlow', sans-serif;
 }
 
@@ -1427,275 +1545,430 @@ h1 {
   }
 }
 
+/*
+ * Tema del panel admin (claro/oscuro), scopeado vía [data-theme] en
+ * .auth-shell y, en paralelo, en <body> (ver AuthenticatedLayout.jsx +
+ * ThemeContext) — body porque los modales se renderizan con createPortal
+ * fuera del arbol de .auth-shell y necesitan su propio scope para heredar
+ * las mismas reglas. El tema claro es la paleta base definida arriba
+ * (pastel/blanca) y no necesita bloque propio: es la que aplican las clases
+ * sin overrides oscuros. Landing publica (HomePage) y pantallas fuera del
+ * panel (login, loading de ProtectedRoute) nunca montan el ThemeProvider,
+ * por lo que ninguno de los dos atributos [data-theme] se setea y quedan
+ * intactas.
+ */
+.auth-loading {
+  color: var(--text-muted);
+}
+
 /* Dark matte theme: shared admin surfaces and controls */
-.auth-loading,
-.muted-text,
-.manager-context-bar p,
-.management-option-copy span,
-.placeholder-card p,
-.data-grid-cell,
-.list-item p,
-.auth-email,
-.search-field,
-.crud-form label,
-.filter-grid label,
-.inline-check {
+.auth-shell[data-theme='dark'] .muted-text,
+body[data-theme='dark'] .muted-text,
+.auth-shell[data-theme='dark'] .manager-context-bar p,
+body[data-theme='dark'] .manager-context-bar p,
+.auth-shell[data-theme='dark'] .management-option-copy span,
+body[data-theme='dark'] .management-option-copy span,
+.auth-shell[data-theme='dark'] .placeholder-card p,
+body[data-theme='dark'] .placeholder-card p,
+.auth-shell[data-theme='dark'] .data-grid-cell,
+body[data-theme='dark'] .data-grid-cell,
+.auth-shell[data-theme='dark'] .list-item p,
+body[data-theme='dark'] .list-item p,
+.auth-shell[data-theme='dark'] .auth-email,
+body[data-theme='dark'] .auth-email,
+.auth-shell[data-theme='dark'] .search-field,
+body[data-theme='dark'] .search-field,
+.auth-shell[data-theme='dark'] .crud-form label,
+body[data-theme='dark'] .crud-form label,
+.auth-shell[data-theme='dark'] .filter-grid label,
+body[data-theme='dark'] .filter-grid label,
+.auth-shell[data-theme='dark'] .inline-check,
+body[data-theme='dark'] .inline-check {
   color: var(--text-muted);
 }
 
 /* Values and labels originally styled for the light palette need a brighter red. */
-.entity-overview-value,
-.stat-card strong,
-.list-item h4,
-.data-grid-cell strong {
+.auth-shell[data-theme='dark'] .entity-overview-value,
+body[data-theme='dark'] .entity-overview-value,
+.auth-shell[data-theme='dark'] .stat-card strong,
+body[data-theme='dark'] .stat-card strong,
+.auth-shell[data-theme='dark'] .list-item h4,
+body[data-theme='dark'] .list-item h4,
+.auth-shell[data-theme='dark'] .data-grid-cell strong,
+body[data-theme='dark'] .data-grid-cell strong {
   color: #ffc1c3;
 }
 
-.sidebar-title,
-.auth-header strong,
-.section-title-row h3,
-.management-selector-heading h3,
-.management-option-copy strong,
-.workflow-guide-card h3 {
+.auth-shell[data-theme='dark'] .sidebar-title,
+body[data-theme='dark'] .sidebar-title,
+.auth-shell[data-theme='dark'] .auth-header strong,
+body[data-theme='dark'] .auth-header strong,
+.auth-shell[data-theme='dark'] .section-title-row h3,
+body[data-theme='dark'] .section-title-row h3,
+.auth-shell[data-theme='dark'] .management-selector-heading h3,
+body[data-theme='dark'] .management-selector-heading h3,
+.auth-shell[data-theme='dark'] .management-option-copy strong,
+body[data-theme='dark'] .management-option-copy strong,
+.auth-shell[data-theme='dark'] .workflow-guide-card h3,
+body[data-theme='dark'] .workflow-guide-card h3 {
   color: #ffd3d5;
 }
 
-.workflow-step-title,
-.selection-pill {
+.auth-shell[data-theme='dark'] .workflow-step-title,
+body[data-theme='dark'] .workflow-step-title,
+.auth-shell[data-theme='dark'] .selection-pill,
+body[data-theme='dark'] .selection-pill {
   color: #e6b8bd;
 }
 
-.sidebar {
+.auth-shell[data-theme='dark'] .sidebar,
+body[data-theme='dark'] .sidebar {
   border-color: var(--border);
   background: linear-gradient(180deg, #211e22, #19181b);
 }
 
-.sidebar-link {
+.auth-shell[data-theme='dark'] .sidebar-link,
+body[data-theme='dark'] .sidebar-link {
   color: #d9c5c8;
 }
 
-.sidebar-link:hover {
+.auth-shell[data-theme='dark'] .sidebar-link:hover,
+body[data-theme='dark'] .sidebar-link:hover {
   border-color: #754249;
   background: #33252a;
 }
 
-.sidebar-link-active,
-.sidebar-link-active:hover {
+.auth-shell[data-theme='dark'] .sidebar-link-active,
+body[data-theme='dark'] .sidebar-link-active,
+.auth-shell[data-theme='dark'] .sidebar-link-active:hover,
+body[data-theme='dark'] .sidebar-link-active:hover {
   color: #ffe1e2;
   border-color: transparent;
   background: linear-gradient(135deg, #8a2530, #c8353d);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
-.auth-header {
+.auth-shell[data-theme='dark'] .auth-header,
+body[data-theme='dark'] .auth-header {
   border-color: var(--border);
-  background: rgba(30, 28, 31, 0.92);
+  /* background: rgba(30, 28, 31, 0.92); */
 }
 
-.logout-btn,
-.ghost-btn {
+.auth-shell[data-theme='dark'] .ghost-btn,
+body[data-theme='dark'] .ghost-btn,
+.auth-shell[data-theme='dark'] .sidebar-action-btn,
+body[data-theme='dark'] .sidebar-action-btn,
+.auth-shell[data-theme='dark'] .hamburger-btn,
+body[data-theme='dark'] .hamburger-btn {
   border-color: #805058;
   background: #2a272c;
   color: #ffc1c3;
 }
 
-.logout-btn:hover,
-.ghost-btn:hover {
+.auth-shell[data-theme='dark'] .ghost-btn:hover,
+body[data-theme='dark'] .ghost-btn:hover,
+.auth-shell[data-theme='dark'] .sidebar-action-btn:hover,
+body[data-theme='dark'] .sidebar-action-btn:hover,
+.auth-shell[data-theme='dark'] .hamburger-btn:hover,
+body[data-theme='dark'] .hamburger-btn:hover {
   background: #3a292e;
 }
 
-.placeholder-card,
-.crud-header,
-.crud-card {
+.auth-shell[data-theme='dark'] .placeholder-card,
+body[data-theme='dark'] .placeholder-card,
+.auth-shell[data-theme='dark'] .crud-header,
+body[data-theme='dark'] .crud-header,
+.auth-shell[data-theme='dark'] .crud-card,
+body[data-theme='dark'] .crud-card {
   background: var(--surface);
   border-color: var(--border);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
 }
 
-.entity-overview-card {
+.auth-shell[data-theme='dark'] .entity-overview-card,
+body[data-theme='dark'] .entity-overview-card {
   border-color: #55454a;
   background: linear-gradient(180deg, #302c31, #252327);
 }
 
-.entity-overview-icon {
+.auth-shell[data-theme='dark'] .entity-overview-icon,
+body[data-theme='dark'] .entity-overview-icon {
   background: #4a252c;
   color: #ffadb0;
 }
 
-.management-option,
-.workflow-step-card,
-.data-grid-shell,
-.autocomplete-option {
+.auth-shell[data-theme='dark'] .management-option,
+body[data-theme='dark'] .management-option,
+.auth-shell[data-theme='dark'] .workflow-step-card,
+body[data-theme='dark'] .workflow-step-card,
+.auth-shell[data-theme='dark'] .data-grid-shell,
+body[data-theme='dark'] .data-grid-shell,
+.auth-shell[data-theme='dark'] .autocomplete-option,
+body[data-theme='dark'] .autocomplete-option {
   border-color: var(--border);
   background: var(--surface-raised);
   color: var(--ink);
 }
 
-.management-option:hover,
-.management-option:focus-visible {
+.auth-shell[data-theme='dark'] .management-option:hover,
+body[data-theme='dark'] .management-option:hover,
+.auth-shell[data-theme='dark'] .management-option:focus-visible,
+body[data-theme='dark'] .management-option:focus-visible {
   border-color: #c2545c;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
 }
 
-.occupants-option {
+.auth-shell[data-theme='dark'] .occupants-option,
+body[data-theme='dark'] .occupants-option {
   background: linear-gradient(135deg, #26303a, #2b292e);
   border-color: #435363;
 }
 
-.assets-option {
+.auth-shell[data-theme='dark'] .assets-option,
+body[data-theme='dark'] .assets-option {
   background: linear-gradient(135deg, #382e24, #2b292e);
   border-color: #665039;
 }
 
-.occupants-option .management-option-icon {
+.auth-shell[data-theme='dark'] .occupants-option .management-option-icon,
+body[data-theme='dark'] .occupants-option .management-option-icon {
   background: #203b50;
   color: #9bd8ff;
 }
 
-.assets-option .management-option-icon {
+.auth-shell[data-theme='dark'] .assets-option .management-option-icon,
+body[data-theme='dark'] .assets-option .management-option-icon {
   background: #493619;
   color: #ffd28a;
 }
 
-.management-option-count {
+.auth-shell[data-theme='dark'] .management-option-count,
+body[data-theme='dark'] .management-option-count {
   background: rgba(255, 255, 255, 0.1);
   color: #ffd4d5;
 }
 
-.workflow-step-card.active {
+.auth-shell[data-theme='dark'] .workflow-step-card.active,
+body[data-theme='dark'] .workflow-step-card.active {
   border-color: #bf5961;
   box-shadow: inset 0 0 0 1px #7f3941;
 }
 
-.workflow-step-title,
-.data-grid-head span,
-.data-grid-cell::before,
-.data-table th {
+.auth-shell[data-theme='dark'] .workflow-step-title,
+body[data-theme='dark'] .workflow-step-title,
+.auth-shell[data-theme='dark'] .data-grid-head span,
+body[data-theme='dark'] .data-grid-head span,
+.auth-shell[data-theme='dark'] .data-grid-cell::before,
+body[data-theme='dark'] .data-grid-cell::before,
+.auth-shell[data-theme='dark'] .data-table th,
+body[data-theme='dark'] .data-table th {
   color: #d9abb0;
 }
 
-.crud-form input,
-.crud-form select,
-.crud-form textarea,
-.filter-grid input,
-.filter-grid select {
+.auth-shell[data-theme='dark'] .crud-form input,
+body[data-theme='dark'] .crud-form input,
+.auth-shell[data-theme='dark'] .crud-form select,
+body[data-theme='dark'] .crud-form select,
+.auth-shell[data-theme='dark'] .crud-form textarea,
+body[data-theme='dark'] .crud-form textarea,
+.auth-shell[data-theme='dark'] .filter-grid input,
+body[data-theme='dark'] .filter-grid input,
+.auth-shell[data-theme='dark'] .filter-grid select,
+body[data-theme='dark'] .filter-grid select {
   border-color: #5d4a50;
   background: #1d1b1f;
   color: var(--ink);
 }
 
-.crud-form input:focus,
-.crud-form select:focus,
-.crud-form textarea:focus,
-.filter-grid input:focus,
-.filter-grid select:focus {
+.auth-shell[data-theme='dark'] .crud-form input:focus,
+body[data-theme='dark'] .crud-form input:focus,
+.auth-shell[data-theme='dark'] .crud-form select:focus,
+body[data-theme='dark'] .crud-form select:focus,
+.auth-shell[data-theme='dark'] .crud-form textarea:focus,
+body[data-theme='dark'] .crud-form textarea:focus,
+.auth-shell[data-theme='dark'] .filter-grid input:focus,
+body[data-theme='dark'] .filter-grid input:focus,
+.auth-shell[data-theme='dark'] .filter-grid select:focus,
+body[data-theme='dark'] .filter-grid select:focus {
   outline-color: #d9545a;
 }
 
-.search-field input {
+.auth-shell[data-theme='dark'] .search-field input,
+body[data-theme='dark'] .search-field input {
   background: #2a2226;
   color: var(--ink);
 }
 
-.search-field input:focus {
+.auth-shell[data-theme='dark'] .search-field input:focus,
+body[data-theme='dark'] .search-field input:focus {
   background: #1d1b1f;
   border-color: #d9545a;
   box-shadow: 0 0 0 3px rgba(217, 84, 90, 0.18);
 }
 
-.search-field-icon,
-.search-field-clear {
+.auth-shell[data-theme='dark'] .search-field-icon,
+body[data-theme='dark'] .search-field-icon,
+.auth-shell[data-theme='dark'] .search-field-clear,
+body[data-theme='dark'] .search-field-clear {
   color: #c99498;
 }
 
-.search-field-clear:hover {
+.auth-shell[data-theme='dark'] .search-field-clear:hover,
+body[data-theme='dark'] .search-field-clear:hover {
   background: rgba(217, 84, 90, 0.16);
   color: #ffc1c3;
 }
 
-.danger-btn {
+.auth-shell[data-theme='dark'] .danger-btn,
+body[data-theme='dark'] .danger-btn {
   border-color: #a74750;
   background: #482329;
   color: #ffc5c7;
 }
 
-.primary-btn.minimal-btn {
+.auth-shell[data-theme='dark'] .primary-btn.minimal-btn,
+body[data-theme='dark'] .primary-btn.minimal-btn {
   background: #a82d36;
 }
 
-.ghost-btn.minimal-btn,
-.danger-btn.minimal-btn {
+.auth-shell[data-theme='dark'] .ghost-btn.minimal-btn,
+body[data-theme='dark'] .ghost-btn.minimal-btn,
+.auth-shell[data-theme='dark'] .danger-btn.minimal-btn,
+body[data-theme='dark'] .danger-btn.minimal-btn {
   background: transparent;
 }
 
-.warning-chip {
+.auth-shell[data-theme='dark'] .warning-chip,
+body[data-theme='dark'] .warning-chip {
   border-color: #a74750;
   background: #482329;
   color: #ffc5c7;
 }
 
-.data-grid-head {
+.auth-shell[data-theme='dark'] .data-grid-head,
+body[data-theme='dark'] .data-grid-head {
   background: #36262b;
   border-color: #5b4147;
 }
 
-.data-grid-row,
-.data-table th,
-.data-table td,
-.divider {
+.auth-shell[data-theme='dark'] .data-grid-row,
+body[data-theme='dark'] .data-grid-row,
+.auth-shell[data-theme='dark'] .data-table th,
+body[data-theme='dark'] .data-table th,
+.auth-shell[data-theme='dark'] .data-table td,
+body[data-theme='dark'] .data-table td,
+.auth-shell[data-theme='dark'] .divider,
+body[data-theme='dark'] .divider {
   border-color: #4c4045;
 }
 
-.data-grid-actions + .data-grid-actions {
+.auth-shell[data-theme='dark'] .data-grid-actions + .data-grid-actions,
+body[data-theme='dark'] .data-grid-actions + .data-grid-actions {
   border-left-color: #4c4045;
 }
 
-.list-item,
-.autocomplete-box {
+.auth-shell[data-theme='dark'] .list-item,
+body[data-theme='dark'] .list-item,
+.auth-shell[data-theme='dark'] .autocomplete-box,
+body[data-theme='dark'] .autocomplete-box {
   border-color: var(--border);
   background: var(--surface-muted);
 }
 
-.card-intent-occupants {
+.auth-shell[data-theme='dark'] .card-intent-occupants,
+body[data-theme='dark'] .card-intent-occupants {
   border-color: #435363;
   background: linear-gradient(180deg, #26303a, #242226);
 }
 
-.card-intent-assets {
+.auth-shell[data-theme='dark'] .card-intent-assets,
+body[data-theme='dark'] .card-intent-assets {
   border-color: #665039;
   background: linear-gradient(180deg, #382e24, #242226);
 }
 
-.autocomplete-option:hover {
+.auth-shell[data-theme='dark'] .autocomplete-option:hover,
+body[data-theme='dark'] .autocomplete-option:hover {
   background: #41282d;
 }
 
-.selection-pill {
+.auth-shell[data-theme='dark'] .selection-pill,
+body[data-theme='dark'] .selection-pill {
   color: #ffb9bc;
 }
 
-.workflow-state-pill.done,
-.status-chip.ok {
+.auth-shell[data-theme='dark'] .workflow-state-pill.done,
+body[data-theme='dark'] .workflow-state-pill.done,
+.auth-shell[data-theme='dark'] .status-chip.ok,
+body[data-theme='dark'] .status-chip.ok {
   color: #9de2bd;
   background: #1e3b2c;
   border-color: #3b845d;
 }
 
-.workflow-state-pill.pending,
-.status-chip.empty,
-.step-warning-box {
+.auth-shell[data-theme='dark'] .workflow-state-pill.pending,
+body[data-theme='dark'] .workflow-state-pill.pending,
+.auth-shell[data-theme='dark'] .status-chip.empty,
+body[data-theme='dark'] .status-chip.empty,
+.auth-shell[data-theme='dark'] .step-warning-box,
+body[data-theme='dark'] .step-warning-box {
   color: #ffd08a;
   background: #42331f;
   border-color: #896438;
 }
 
-.step-success-note {
+.auth-shell[data-theme='dark'] .step-success-note,
+body[data-theme='dark'] .step-success-note {
   color: #9de2bd;
 }
 
-.step-warning-note,
-.step-warning-box p {
+.auth-shell[data-theme='dark'] .step-warning-note,
+body[data-theme='dark'] .step-warning-note,
+.auth-shell[data-theme='dark'] .step-warning-box p,
+body[data-theme='dark'] .step-warning-box p {
   color: #ffd08a;
+}
+
+/*
+ * Sidebar del panel: flotante (fixed) siempre, y responsive en dos
+ * escalones.
+ * - <=1100px (tablet): rail de solo iconos, sin drawer; el texto no
+ *   desaparece de golpe, colapsa con el fade de .sidebar-title /
+ *   .sidebar-link-label / .sidebar-action-label definido en la regla base.
+ * - <=860px (mobile, mismo corte que el resto del panel): pasa a menu
+ *   hamburguesa off-canvas (ver .sidebar-open / .hamburger-btn /
+ *   .sidebar-backdrop en AuthenticatedLayout.jsx).
+ */
+@media (max-width: 1100px) {
+  .auth-main {
+    margin-left: calc(76px + 2rem);
+  }
+
+  .sidebar {
+    width: 76px;
+    padding: 1.4rem 0.5rem;
+    align-items: center;
+  }
+
+  .sidebar-title {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+  }
+
+  .sidebar-link-label,
+  .sidebar-action-label {
+    opacity: 0;
+    max-width: 0;
+    margin-left: 0;
+  }
+
+  .sidebar-link,
+  .sidebar-action-btn {
+    justify-content: center;
+    width: 100%;
+    padding: 0.7rem;
+  }
 }
 
 @media (max-width: 860px) {
@@ -1716,22 +1989,62 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .auth-shell {
-    grid-template-columns: 1fr;
+  .auth-main {
+    margin-left: 0;
   }
 
   .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid #efc8c8;
+    top: 0;
+    left: 0;
+    width: min(260px, 82vw);
+    height: 100vh;
+    padding: 1.2rem;
+    align-items: stretch;
+    border-right: 1px solid #efc8c8;
+    border-bottom: 0;
+    border-radius: 0;
+    box-shadow: 16px 0 32px rgba(0, 0, 0, 0.18);
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    z-index: 210;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-title {
+    opacity: 1;
+    max-height: 2.2rem;
+    margin: 0 0 1rem;
+  }
+
+  .sidebar-link-label,
+  .sidebar-action-label {
+    opacity: 1;
+    max-width: 160px;
+    margin-left: 0.65rem;
+  }
+
+  .sidebar-link {
+    justify-content: flex-start;
+    width: auto;
+  }
+
+  .sidebar-action-btn {
+    justify-content: flex-start;
   }
 
   .sidebar-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+  }
+
+  .hamburger-btn {
+    display: inline-flex;
   }
 
   .auth-header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .crud-header {

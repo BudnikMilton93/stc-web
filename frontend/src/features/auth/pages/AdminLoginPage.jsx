@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import logo from '../../../assets/logo.png'
 import { useAuth } from '../../../context/AuthContext'
@@ -16,6 +16,17 @@ export function AdminLoginPage() {
       navigate('/panel-admin/clientes', { replace: true })
     }
   }, [isAuthorized, navigate])
+
+  useLayoutEffect(() => {
+    // El login es claro por defecto (no tiene switch propio): reutiliza las
+    // mismas variables de tema claro que index.css ya define para el panel
+    // admin bajo `body[data-theme='light']` (ver ThemeContext).
+    document.body.dataset.theme = 'light'
+
+    return () => {
+      delete document.body.dataset.theme
+    }
+  }, [])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -45,7 +56,7 @@ export function AdminLoginPage() {
       <section className="login-card" aria-label="Acceso administrador">
         <img src={logo} alt="STC" className="brand-logo small" />
         <h1>Administrador</h1>
-        <p>Acceso interno para staff activo. Inicia sesion con tu cuenta corporativa.</p>
+        <p>Acceso interno para staff activo. Inicia sesión con tu cuenta corporativa.</p>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label htmlFor="email">Email corporativo</label>
@@ -58,7 +69,7 @@ export function AdminLoginPage() {
             required
           />
 
-          <label htmlFor="password">Contrasena</label>
+          <label htmlFor="password">Contraseña</label>
           <input
             id="password"
             type="password"
