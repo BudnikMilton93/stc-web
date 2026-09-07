@@ -100,7 +100,15 @@ jobs:
 
       # Sin publish-profile: usa la sesion ya autenticada por azure/login
       # de arriba (OIDC), en vez de una credencial de Basic Auth.
+      #
+      # resource-group-name es necesario: el rol Website Contributor del
+      # service principal esta scopeado solo al recurso stc-api (no al
+      # resource group ni la subscription), asi que no puede *listar/buscar*
+      # el App Service por nombre en toda la subscription (lo que la action
+      # hace por default sin este dato) — con el resource group explicito,
+      # apunta directo al recurso sin necesitar ese permiso mas amplio.
       - uses: azure/webapps-deploy@v3
         with:
           app-name: stc-api
+          resource-group-name: stc-web-rg
           images: ${{ env.IMAGE }}:${{ github.sha }}
