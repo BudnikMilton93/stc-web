@@ -47,3 +47,60 @@ jobs:
       - run: dotnet restore Stc.Api.slnx
       - run: dotnet build Stc.Api.slnx --no-restore --configuration Release
       - run: dotnet test Stc.Api.slnx --no-build --configuration Release
+
+  deploy-api:
+    name: Deploy API a Azure (Docker)
+    needs: api
+    # Solo en push a main, nunca en PR: evita pushear imagenes ni tocar el
+    # App Service de produccion desde una rama que todavia no se mergeo.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # Requerido por azure/login para el intercambio OIDC (federated
+      # credential) contra Azure AD: sin esto no puede pedir el token de
+      # identidad de este job. No usamos un client secret de larga
+      # duracion — Azure lo deshabilito por default en el App Service
+      # (Basic Auth) y ademas OIDC es el mecanismo recomendado hoy.
+      id-token: write
+    env:
+      IMAGE: ghcr.io/budnikmilton93/stc-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Los runners de GitHub Actions ya corren nativo en amd64 (a diferencia
+      # de una Mac Apple Silicon, ver docs/roadmaps/01-produccion.md #5), asi
+      # que este build no depende de emulacion QEMU. Se etiqueta ademas con
+      # el SHA del commit (no solo :latest) para que cada deploy apunte a una
+      # imagen distinta y Azure la vuelva a pullear siempre, en vez de
+      # potencialmente reusar una capa cacheada con el mismo tag.
+      - uses: docker/build-push-action@v6
+        with:
+          context: api
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Sin publish-profile: usa la sesion ya autenticada por azure/login
+      # de arriba (OIDC), en vez de una credencial de Basic Auth.
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: stc-api
+          images: ${{ env.IMAGE }}:${{ github.sha }}
