@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols;
@@ -98,29 +99,61 @@ builder.Services.AddRateLimiter(options =>
 });
 
 const string FrontendDevCorsPolicy = "FrontendDev";
+const string FrontendProductionCorsPolicy = "FrontendProduction";
 
-// Solo para desarrollo: el frontend (Vite) corre en un puerto distinto al de
-// esta API, asi que el navegador exige que el origen este habilitado
-// explicitamente. En produccion todavia no hay un origen definido.
+// El origen de produccion (dominio de Vercel) no es secreto, va commiteado
+// en appsettings.json como default y puede pisarse por variable de entorno
+// en Azure (Cors__ProductionOrigin) si el dominio cambia.
+var productionOrigin = builder.Configuration["Cors:ProductionOrigin"];
+
 builder.Services.AddCors(options =>
 {
+    // Solo para desarrollo: el frontend (Vite) corre en un puerto distinto al de
+    // esta API, asi que el navegador exige que el origen este habilitado
+    // explicitamente.
     options.AddPolicy(FrontendDevCorsPolicy, policy =>
         policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
             .AllowAnyHeader()
             .AllowAnyMethod());
+
+    if (!string.IsNullOrWhiteSpace(productionOrigin))
+    {
+        options.AddPolicy(FrontendProductionCorsPolicy, policy =>
+            policy.WithOrigins(productionOrigin)
+                .AllowAnyHeader()
+                .AllowAnyMethod());
+    }
 });
 
 var app = builder.Build();
 
 // Primero en el pipeline: debe envolver a todo el resto de los middlewares
-// y endpoints (incluido UseCors en desarrollo) para capturar cualquier
-// excepcion no controlada que ocurra mas abajo.
+// y endpoints (incluido UseCors) para capturar cualquier excepcion no
+// controlada que ocurra mas abajo.
 app.UseExceptionHandler();
+
+// Azure App Service termina TLS en su proxy y reenvia por HTTP interno con
+// X-Forwarded-Proto/X-Forwarded-For. Sin esto, UseHttpsRedirection() de abajo
+// no reconoce la request original como HTTPS y puede loopear el redirect.
+// KnownNetworks/KnownProxies se limpian porque el proxy de App Service no es
+// una IP fija conocida de antemano (ya esta detras del edge de Azure, no
+// expuesto directo a internet).
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseCors(FrontendDevCorsPolicy);
+}
+else
+{
+    app.UseCors(FrontendProductionCorsPolicy);
 }
 
 app.UseHttpsRedirection();
