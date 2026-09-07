@@ -35,7 +35,7 @@ describe('AdminLoginPage', () => {
     renderLoginPage()
 
     await user.type(screen.getByLabelText('Email corporativo'), 'admin@stc.local')
-    await user.type(screen.getByLabelText('Contrasena'), 'secreto123')
+    await user.type(screen.getByLabelText('Contraseña'), 'secreto123')
     await user.click(screen.getByRole('button', { name: 'Ingresar' }))
 
     expect(signIn).toHaveBeenCalledWith('admin@stc.local', 'secreto123')
@@ -55,7 +55,7 @@ describe('AdminLoginPage', () => {
     renderLoginPage()
 
     await user.type(screen.getByLabelText('Email corporativo'), 'admin@stc.local')
-    await user.type(screen.getByLabelText('Contrasena'), 'mal')
+    await user.type(screen.getByLabelText('Contraseña'), 'mal')
     await user.click(screen.getByRole('button', { name: 'Ingresar' }))
 
     expect(await screen.findByText('Credenciales invalidas')).toBeInTheDocument()
