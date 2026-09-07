@@ -86,7 +86,7 @@ describe('UnidadDetailPage', () => {
     expect(screen.getByRole('button', { name: /Nuevo activo/i })).toBeDisabled()
   })
 
-  it('habilita el alta de activos cuando hay al menos un ocupante activo, y permite elegirlo con el autocomplete', async () => {
+  it('habilita el alta de activos cuando hay al menos un ocupante activo, y permite elegirlo desde el select', async () => {
     mockGetRoutes({ ocupantes: [ocupanteMock] })
     apiClient.post.mockResolvedValue({ id: 'activo-1' })
     const user = userEvent.setup()
@@ -98,8 +98,7 @@ describe('UnidadDetailPage', () => {
     expect(screen.queryByText(/Alta de activo bloqueada/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Nuevo activo/i }))
-    await user.type(screen.getByLabelText(/Ocupante responsable/i), 'Juan')
-    await user.click(screen.getByRole('button', { name: /Juan Perez \(titular\)/i }))
+    await user.selectOptions(screen.getByLabelText(/Ocupante responsable/i), ocupanteMock.id)
     await user.click(screen.getByRole('button', { name: /Guardar activo/i }))
 
     await waitFor(() => expect(apiClient.post).toHaveBeenCalled())
