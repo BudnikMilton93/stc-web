@@ -44,6 +44,17 @@ renovacion automatica — no requiere tocar nada si Supabase rota las claves).
 dotnet run --project src/Stc.Api
 ```
 
+## Despliegue en producción
+
+En producción la API corre como imagen Docker sobre Azure App Service
+("Web App for Containers"), no con el stack nativo .NET de Azure —
+ver la decisión completa (por qué Docker, comparación de costo,
+problemas reales encontrados al desplegar) en
+`docs/arquitectura/02-Backend-API.md` y en el detalle operativo de
+`docs/roadmaps/01-produccion.md` (ítem 4). El `Dockerfile` de esta
+carpeta se usa solo para ese build de producción — en desarrollo
+local siempre se corre con `dotnet run`, nunca con Docker.
+
 ## Autorizacion
 
 El sistema es de un solo usuario admin, sin roles. Esto colapso el
@@ -101,8 +112,8 @@ cuando el frontend los necesite.
 - `POST /leads` (unica superficie publica sin sesion) ya tiene rate
   limiting (5 req/min por IP, `AddRateLimiter`) y validacion de input
   (`ValidarCrearLead` en `Endpoints/LeadsEndpoints.cs`).
-- Sin CORS definido para produccion (`Program.cs` solo habilita el
-  origen de Vite en desarrollo) — decision diferida a proposito hasta
-  que exista un dominio real de deploy, no un olvido (ver
-  `docs/roadmaps/00-fortalecimiento.md`).
+- CORS de produccion ya definido: policy `FrontendProduction`, con el
+  origen leido de `Cors:ProductionOrigin` (`appsettings.json`, no es
+  secreto), separada de la policy de desarrollo (`FrontendDev`) — ver
+  `docs/roadmaps/01-produccion.md` (ítem 1).
 - Endpoints para `orden_items` y `adjuntos` cuando se necesiten.

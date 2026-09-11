@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "STC Web - Arquitectura",
+    "output": "03-Diagrama.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "panel-admin",
+        "label": "Panel admin (datos de negocio)",
+        "focus": ["tecnico", "frontend", "api", "postgres"],
+        "note": "Todo el CRUD de clientes, sitios, unidades, ocupantes y activos pasa por la API en C#, nunca directo a Supabase."
+      },
+      {
+        "id": "login",
+        "label": "Login (Supabase Auth)",
+        "focus": ["tecnico", "frontend", "supabaseAuth", "api"],
+        "note": "supabase-js se usa solo para autenticar; la API valida el JWT contra las JWKS del mismo proyecto."
+      },
+      {
+        "id": "leads",
+        "label": "Formulario público de leads",
+        "focus": ["visitante", "frontend", "api", "postgres"],
+        "note": "Unica ruta anónima de la API: POST /leads, sin sesión, con rate limiting."
+      },
+      {
+        "id": "despliegue",
+        "label": "Despliegue a producción",
+        "focus": ["ci", "ghcr", "api", "frontend"],
+        "note": "Push a main: frontend/api (tests) en paralelo, luego deploy-api (Azure) y recién después deploy-frontend (Vercel) — nunca al revés."
+      }
+    ]
+  },
+  "components": [
+    { "id": "visitante", "type": "external", "label": "Visitante", "sublabel": "Landing pública", "pos": [30, 440], "size": [130, 60] },
+    { "id": "tecnico", "type": "external", "label": "Dueño / Técnico", "sublabel": "Panel admin", "pos": [30, 260], "size": [130, 60] },
+    { "id": "frontend", "type": "frontend", "label": "Frontend SPA", "sublabel": "React + Vite", "tag": "apiClient.js", "pos": [260, 350], "size": [140, 64] },
+    { "id": "supabaseAuth", "type": "security", "label": "Supabase Auth", "sublabel": "login / sesión", "pos": [260, 130], "size": [140, 64] },
+    { "id": "api", "type": "backend", "label": "API C#", "sublabel": ".NET · minimal APIs", "tag": "policy \"Activo\"", "pos": [540, 350], "size": [150, 64] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "Session Pooler :5432", "tag": "RLS = defensa en profundidad", "pos": [830, 350], "size": [150, 64] },
+    { "id": "ci", "type": "external", "label": "GitHub Actions", "sublabel": "ci.yml · push a main", "tag": "frontend+api -> deploy-api -> deploy-frontend", "pos": [230, 620], "size": [180, 64] },
+    { "id": "ghcr", "type": "cloud", "label": "GHCR", "sublabel": "ghcr.io/.../stc-api", "tag": "tags: latest + sha", "pos": [540, 620], "size": [150, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Supabase (hosted)", "wraps": ["supabaseAuth", "postgres"], "pad": 16 },
+    { "kind": "region", "label": "Azure App Service (Docker, westus2)", "wraps": ["api"], "pad": 10 },
+    { "kind": "region", "label": "Vercel (Production)", "wraps": ["frontend"], "pad": 10 }
+  ],
+  "connections": [
+    { "id": "tecnico-frontend", "from": "tecnico", "to": "frontend", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "visitante-frontend", "from": "visitante", "to": "frontend", "label": "HTTPS" },
+    { "id": "frontend-auth", "from": "frontend", "to": "supabaseAuth", "label": "login (supabase-js)", "variant": "security", "fromSide": "top", "toSide": "bottom", "labelDy": -30 },
+    { "id": "frontend-api", "from": "frontend", "to": "api", "label": "REST + Bearer JWT", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+    { "id": "api-auth", "from": "api", "to": "supabaseAuth", "label": "valida JWT (JWKS)", "variant": "security", "fromSide": "top", "toSide": "bottom", "via": [[615, 272], [330, 272]] },
+    { "id": "api-postgres", "from": "api", "to": "postgres", "label": "EF Core + Npgsql", "fromSide": "right", "toSide": "left" },
+    { "id": "ci-ghcr", "from": "ci", "to": "ghcr", "label": "docker build + push", "variant": "dashed", "fromSide": "right", "toSide": "left" },
+    { "id": "ghcr-api", "from": "ghcr", "to": "api", "label": "docker pull -> Azure App Service", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "ci-frontend", "from": "ci", "to": "frontend", "label": "deploy-frontend (hook, needs: deploy-api)", "variant": "dashed", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Frontend",
+      "items": [
+        "React + Vite: SPA del panel admin + landing pública",
+        "apiClient.js adjunta el JWT de Supabase como Authorization: Bearer",
+        "supabase-js se usa solo para Auth, nunca para datos de negocio"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "API (C#)",
+      "items": [
+        ".NET minimal APIs + EF Core, única capa que habla con Postgres",
+        "Policy única \"Activo\": un solo usuario admin, sin roles",
+        "Excepción: POST /leads es público (AllowAnonymous, rate limited)"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Datos",
+      "items": [
+        "Postgres alojado en Supabase, vía connection pooler en modo sesión",
+        "RLS de las migraciones queda como defensa en profundidad",
+        "Enums nativos de Postgres mapeados con Npgsql MapEnum"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Despliegue",
+      "items": [
+        "API: imagen Docker (api/Dockerfile) a GHCR, deploy a Azure App Service vía OIDC",
+        "Frontend: Vercel, con auto-deploy nativo desactivado (vercel.json) a propósito",
+        "Orden coordinado en ci.yml: deploy-frontend recién corre despues de deploy-api"
+      ]
+    }
+  ]
+}

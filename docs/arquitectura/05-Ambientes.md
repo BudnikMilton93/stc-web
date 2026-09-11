@@ -4,6 +4,8 @@ Este documento explica las dos bases contra las que puede correr la API en desar
 
 **Ninguna credencial real va en este documento** — donde hace falta un valor sensible (password, connection string completa) se deja un placeholder y se indica de dónde sacarlo.
 
+**Nota sobre "Docker" en este documento**: acá "Docker local" se refiere únicamente al contenedor de Postgres/Supabase que levanta `supabase start` — la API en C# **no** corre en Docker en desarrollo local, siempre con `dotnet run` (ver [02-Backend-API.md](02-Backend-API.md)). El otro uso de Docker en este proyecto — `api/Dockerfile`, para empaquetar la API como imagen en producción (Azure) — es un contenedor distinto, con un propósito distinto; ver la sección "Despliegue en producción" en [02-Backend-API.md](02-Backend-API.md#despliegue-en-producción-contenedor-docker) y el detalle operativo en [../roadmaps/01-produccion.md](../roadmaps/01-produccion.md).
+
 ## Las dos bases
 
 | | Local (Docker) | Remoto (Supabase) |

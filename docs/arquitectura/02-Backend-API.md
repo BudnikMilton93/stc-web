@@ -1,6 +1,6 @@
 # 02 - Backend API (C#)
 
-Este documento describe la API propia en C# que vive en [`api/`](../../api), que reemplazó el acceso directo del frontend a Supabase (`supabase-js` + RLS) para datos de negocio. Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume esta API hoy, ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html). Para el flujo seguro de migraciones (incluido un gotcha de Npgsql con enums nativos relevante para esta API), ver [04-Migraciones.md](04-Migraciones.md). Para cómo switchear esta API entre el Docker local y el proyecto remoto, ver [05-Ambientes.md](05-Ambientes.md).
+Este documento describe la API propia en C# que vive en [`api/`](../../api), que reemplazó el acceso directo del frontend a Supabase (`supabase-js` + RLS) para datos de negocio. Para el contexto de negocio y el origen del schema, ver [00-Contexto-Proyecto.md](00-Contexto-Proyecto.md). Para cómo el frontend consume esta API hoy, ver [01-Estructura.MD](01-Estructura.MD). Para un diagrama visual de todo esto, ver [03-Diagrama.html](03-Diagrama.html). Para el flujo seguro de migraciones (incluido un gotcha de Npgsql con enums nativos relevante para esta API), ver [04-Migraciones.md](04-Migraciones.md). Para cómo switchear esta API entre el Docker local y el proyecto remoto, ver [05-Ambientes.md](05-Ambientes.md). Para el detalle operativo completo del despliegue en producción (Docker en Azure), ver [../roadmaps/01-produccion.md](../roadmaps/01-produccion.md).
 
 - **Levantar la API**: dotnet run --project api/src/Stc.Api
 
@@ -84,6 +84,14 @@ Todos los recursos del schema están cubiertos (policy **Activo** en todos los m
 
 `orden_items` y `adjuntos` (dos tablas del schema) todavía no tienen endpoint propio — quedan como sub-recursos a resolver cuando el frontend los necesite (ver `api/README.md`).
 
+## Despliegue en producción: contenedor Docker
+
+En producción la API corre como **imagen Docker** sobre Azure App Service ("Web App for Containers"), no sobre el stack nativo `.NET` de Azure. Se decidió así porque, al momento de definir el despliegue, el stack nativo de .NET 10 en Azure App Service todavía figuraba como "Preview" en varias regiones — containerizar evita depender de ese timing y deja la versión exacta del runtime bajo control propio en vez de la que exponga la plataforma. El compute (App Service Plan) cuesta igual con o sin contenedor; la única diferencia de costo es dónde vive la imagen, y se eligió GHCR (gratis) en vez de Azure Container Registry (~USD 5/mes), así que el delta real de esta decisión es prácticamente cero.
+
+Implementación: [`api/Dockerfile`](../../api/Dockerfile) (multi-stage: SDK para build/publish, `aspnet:10.0` para runtime, usuario no-root, puerto `8080` no privilegiado) y [`api/.dockerignore`](../../api/.dockerignore). Este Dockerfile **solo se usa para el build de producción** (vía el pipeline de CI, ver más abajo) — en desarrollo local la API sigue corriendo directo con `dotnet run` (ver [comandos arriba](#por-qué-existe) y [05-Ambientes.md](05-Ambientes.md)), sin pasar por Docker; el único uso de Docker en desarrollo local es el Postgres de `supabase start`, un contenedor completamente distinto con un propósito distinto.
+
+Para el razonamiento completo de la decisión, la comparación de costos y los dos problemas reales encontrados al desplegar contra Azure (arquitectura `arm64` vs. `amd64` en Mac Apple Silicon, y el pull anónimo desde GHCR fallando en Azure), ver [../roadmaps/01-produccion.md](../roadmaps/01-produccion.md), ítem 4 — ahí queda el detalle operativo, este documento solo resume la decisión arquitectónica.
+
 ## Ajustes hechos durante la migración del frontend
 
 Al conectar el frontend real contra la API se encontraron y corrigieron varios problemas que no eran evidentes sin probar la integración end-to-end:
@@ -98,4 +106,4 @@ Al conectar el frontend real contra la API se encontraron y corrigieron varios p
 1. Evaluar si vale la pena endurecer más las policies RLS actuales (hoy protegen el escenario "frontend habla directo con la anon key"; con la migración completa, esa capa pasa a ser defensa en profundidad, no la autorización primaria).
 2. Endpoints para `orden_items` y `adjuntos`, cuando se implemente la pantalla de Órdenes (hoy es un placeholder). No hay pantalla de Usuarios pendiente: `frontend/src/features/usuarios` se eliminó al simplificar el sistema a un solo usuario admin.
 3. Tests automatizados de la API (`api/src/Stc.Api.Tests`, xUnit + `WebApplicationFactory` + Testcontainers), tests del frontend (`frontend/src/**/*.test.{js,jsx}`, Vitest + React Testing Library), e2e de flujos críticos (Playwright, `frontend/e2e/`) y una revisión de seguridad ya están hechos (ver [../roadmaps/00-fortalecimiento.md](../roadmaps/00-fortalecimiento.md) para el detalle), igual que CI básico (`.github/workflows/ci.yml`, lint+test+build del frontend y build+tests de la API en cada push/PR).
-4. Definir dónde y cómo se hospeda la API en un ambiente de producción — hoy solo corre en local (`localhost:5004`). CORS de producción queda deliberadamente diferido hasta que exista ese dominio real (ver roadmap).
+4. Hospedaje en producción ya definido e implementado: Azure App Service ("Web App for Containers"), imagen Docker publicada en GHCR vía CI (ver sección "Despliegue en producción" arriba). Queda pendiente el resto del roadmap de salida a producción (deploy del frontend en Vercel, health check endpoint, observabilidad en Azure, staging) — ver [../roadmaps/01-produccion.md](../roadmaps/01-produccion.md) para el estado actualizado ítem por ítem.
