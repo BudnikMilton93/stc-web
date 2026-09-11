@@ -89,4 +89,34 @@ describe('AdminLoginPage', () => {
     const button = screen.getByRole('button', { name: 'Ingresando...' })
     expect(button).toBeDisabled()
   })
+
+  it('muestra el aviso de cierre por inactividad cuando loggedOutReason es "inactivity"', () => {
+    useAuth.mockReturnValue({
+      isAuthorized: false,
+      isAuthenticated: false,
+      loading: false,
+      authError: '',
+      loggedOutReason: 'inactivity',
+      signIn: vi.fn(),
+    })
+
+    renderLoginPage()
+
+    expect(screen.getByText(/se cerró automáticamente por inactividad/)).toBeInTheDocument()
+  })
+
+  it('no muestra el aviso de inactividad cuando no hubo cierre automatico', () => {
+    useAuth.mockReturnValue({
+      isAuthorized: false,
+      isAuthenticated: false,
+      loading: false,
+      authError: '',
+      loggedOutReason: null,
+      signIn: vi.fn(),
+    })
+
+    renderLoginPage()
+
+    expect(screen.queryByText(/se cerró automáticamente por inactividad/)).not.toBeInTheDocument()
+  })
 })
