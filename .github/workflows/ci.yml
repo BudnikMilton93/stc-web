@@ -112,3 +112,18 @@ jobs:
           app-name: stc-api
           resource-group-name: stc-web-rg
           images: ${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy-frontend:
+    name: Deploy Frontend a Vercel
+    needs: [frontend, deploy-api]
+    # Mismo gate que deploy-api: solo push a main, nunca en PR. El
+    # auto-deploy de Vercel en push a main esta deshabilitado a proposito
+    # (ver frontend/vercel.json, git.deploymentEnabled.main: false) para que
+    # el front en produccion nunca quede online antes que la API que
+    # consume: este job depende de deploy-api y recien dispara el hook
+    # cuando la API ya esta arriba.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar deploy de produccion en Vercel
+        run: curl --fail -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"

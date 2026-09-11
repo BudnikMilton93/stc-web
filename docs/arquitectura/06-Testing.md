@@ -55,7 +55,7 @@ Configuración en `vite.config.js` (bloque `test`): `environment: 'jsdom'`, `glo
 - `components/ui/Modal.test.jsx` — comportamiento genérico del componente `Modal` reusado en todos los ABM.
 - `features/clientes/pages/{ClientesPage,ClienteDetailPage,SitioDetailPage,UnidadDetailPage}.test.jsx` — cobertura representativa de los CRUD de la jerarquía Cliente → Sitio → Unidad → Ocupante/Activo (carga, alta, validación, error de API), no exhaustiva en cada página (mismo criterio de representatividad que en la API).
 
-`AuthContext.jsx` no se testea de forma aislada — se verifica indirectamente vía `ProtectedRoute`/`AdminLoginPage` mockeando `useAuth`.
+- `context/AuthContext.test.jsx` — cierre de sesión por inactividad (30 min sin interacción real, aviso cancelable 2 min antes vía `vi.useFakeTimers()`): cierra sesión y expone `loggedOutReason: 'inactivity'`; muestra el modal de aviso; un evento de teclado o el botón "Continuar sesión" cancelan el cierre; el timer no arranca sin sesión autorizada (ni sin sesión, ni con staff inactivo).
 
 ## E2E — Playwright
 

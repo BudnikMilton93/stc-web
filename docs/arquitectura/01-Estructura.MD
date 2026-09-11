@@ -47,6 +47,7 @@ Responsabilidades:
 - Validar si el usuario autenticado está activo, vía `GET /usuarios/me` en la API (no consulta la tabla `usuarios` directo)
 - Exponer `signIn` y `logout`
 - Controlar estados de carga y error de autenticación
+- Cerrar la sesión automáticamente tras 30 minutos de inactividad real (mouse/teclado), con un aviso previo de 2 minutos cancelable (`src/hooks/useInactivityTimeout.js` + `src/components/auth/InactivityWarningModal.jsx`, montado por `AuthProvider`). Solo corre mientras hay sesión autorizada. Expone `loggedOutReason` para que `AdminLoginPage.jsx` distinga un cierre por inactividad de un error de credenciales.
 
 ### `src/lib/supabase.ts`
 Cliente tipado de Supabase. Se usa **únicamente para Supabase Auth** (login, sesión) — no para datos de negocio. Toma las variables de entorno:
@@ -140,6 +141,12 @@ Incluye:
 ### `src/components/auth/ProtectedRoute.jsx`
 Bloquea el acceso si no hay sesión válida de staff.
 
+### `src/components/auth/InactivityWarningModal.jsx`
+Modal de aviso previo al cierre de sesión por inactividad (ver `AuthContext.jsx`). Muestra la cuenta regresiva y permite cancelar el cierre interactuando ("Continuar sesión").
+
+### `src/hooks/useInactivityTimeout.js`
+Hook sin dependencias externas que arma los timers de inactividad (aviso + cierre) a partir de eventos reales de mouse/teclado. Lo consume `AuthContext.jsx`; no depende de Supabase ni de la API.
+
 ## Estilos
 
 ### `src/index.css`
@@ -200,4 +207,4 @@ El flujo principal que ya está armado es:
 - El CRUD de clientes, sitios, unidades, ocupantes y activos ya está operativo y **consume la API en C#** (ver [02-Backend-API.md](02-Backend-API.md)), no Supabase directo.
 - La baja lógica está resuelta en la UI actual (flag de texto en `notas`, salvo activos que usan un campo `estado` real).
 - La pantalla de órdenes todavía está pendiente de implementación funcional (queda para una próxima fase). No hay pantalla de usuarios: se eliminó al simplificar el sistema a un solo usuario admin, sin roles.
-- Tests automatizados de la API, tests automatizados del frontend y una revisión de seguridad ya están hechos (ver [../roadmaps/00-fortalecimiento.md](../roadmaps/00-fortalecimiento.md)). Pendiente antes de operar con datos reales: e2e con Playwright — ver "Próximos pasos" en [02-Backend-API.md](02-Backend-API.md).
+- Tests automatizados de la API, tests automatizados del frontend, e2e de flujos críticos (Playwright) y una revisión de seguridad ya están hechos (ver [../roadmaps/00-fortalecimiento.md](../roadmaps/00-fortalecimiento.md)).
