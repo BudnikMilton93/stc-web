@@ -5,11 +5,15 @@ import { useAuth } from '../../../context/AuthContext'
 
 export function AdminLoginPage() {
   const navigate = useNavigate()
-  const { isAuthorized, isAuthenticated, loading, authError, signIn } = useAuth()
+  const { isAuthorized, isAuthenticated, loading, authError, loggedOutReason, signIn } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState('')
+
+  // Mensaje de seguridad (no de error) cuando llegamos aca porque
+  // useInactivityTimeout cerro la sesion, no por una credencial invalida.
+  const loggedOutByInactivity = loggedOutReason === 'inactivity'
 
   useEffect(() => {
     if (isAuthorized) {
@@ -57,6 +61,12 @@ export function AdminLoginPage() {
         <img src={logo} alt="STC" className="brand-logo small" />
         <h1>Administrador</h1>
         <p>Acceso interno para staff activo. Inicia sesión con tu cuenta corporativa.</p>
+
+        {loggedOutByInactivity && (
+          <p className="form-notice">
+            Tu sesión se cerró automáticamente por inactividad. Ingresá de nuevo para continuar.
+          </p>
+        )}
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label htmlFor="email">Email corporativo</label>
