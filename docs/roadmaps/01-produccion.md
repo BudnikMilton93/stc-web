@@ -20,6 +20,7 @@ Contexto: hoy el sistema corre solo en local (Docker + `dotnet run` + `npm run d
 | 10 | Elegir región de Azure cercana a la de Supabase | Pendiente, recomendado | Mitiga la latencia de red documentada en [00-fortalecimiento.md #12](00-fortalecimiento.md) |
 | 11 | Evaluar ambiente de staging antes de operar con datos reales | Pendiente, a evaluar | Ya trackeado en [00-fortalecimiento.md #9](00-fortalecimiento.md) — sube de prioridad al salir a producción |
 | 12 | Verificación end-to-end post-deploy | En progreso | API verificada en producción real (`POST /leads` → 201, `GET /clientes` sin token → 401); falta el frontend en Vercel para probar el flujo completo |
+| 13 | Orden de deploy coordinado entre Vercel y Azure | En progreso (2026-09-11) | `deploy-frontend` agregado en `ci.yml` con `needs: [frontend, deploy-api]`; falta crear el Deploy Hook en Vercel y cargar `VERCEL_DEPLOY_HOOK_URL` como secret (paso manual, no automatizable desde acá) |
 
 ## Detalle
 
@@ -110,6 +111,23 @@ Ya trackeado como deuda general en 00-fortalecimiento.md #9. Al salir a producci
 
 ### 12. Verificación end-to-end post-deploy — Pendiente
 Una vez desplegados ambos lados, correr a mano el flujo crítico completo (login → cliente → sitio → unidad → ocupante → activo) y probar `POST /leads` desde la landing pública, ya contra los dominios reales de Vercel y Azure — no alcanza con que build y CI hayan pasado.
+
+### 13. Orden de deploy coordinado entre Vercel y Azure — En progreso (2026-09-11)
+
+Problema detectado: el auto-deploy de Vercel se dispara solo, en paralelo a `.github/workflows/ci.yml`, sin depender de que `frontend`/`api` pasen ni de que `deploy-api` termine. Como el pipeline de la API es más lento (build + tests + build de imagen Docker + push a GHCR + `azure/webapps-deploy`), existía una ventana real donde el front nuevo podía quedar online en producción **antes** de que la API nueva estuviera desplegada — sirviendo la versión vieja de la API a la versión nueva del front.
+
+Solución aplicada (dos partes):
+
+1. **[`frontend/vercel.json`](../../frontend/vercel.json)**: `"git": { "deploymentEnabled": { "main": false } }` — desactiva el auto-deploy de Vercel específicamente para `main` (los preview deployments de otras ramas/PRs siguen andando igual, no se tocó eso).
+2. **[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)**: nuevo job `deploy-frontend`, con `needs: [frontend, deploy-api]` y el mismo gate que `deploy-api` (`if: github.ref == 'refs/heads/main' && github.event_name == 'push'`). Dispara un **Vercel Deploy Hook** vía `curl` — recién cuando la API ya terminó de desplegarse en Azure.
+
+Con esto el orden queda serializado: `frontend`/`api` (tests) → `deploy-api` (Azure) → `deploy-frontend` (Vercel). El front en producción nunca puede adelantarse a la API que consume.
+
+**Pendiente (paso manual, no lo puede hacer un agente — requiere acceso al dashboard de Vercel y a los secrets del repo):**
+1. En el proyecto de Vercel: Settings → Git → Deploy Hooks → crear uno nuevo apuntando a la rama `main`.
+2. En el repo de GitHub: Settings → Secrets and variables → Actions → cargar `VERCEL_DEPLOY_HOOK_URL` con la URL de ese hook.
+
+Hasta que esos dos pasos no estén hechos, ningún push a `main` va a disparar el deploy del frontend (ni el viejo mecanismo automático de Vercel, deshabilitado a propósito, ni el nuevo vía `curl`, porque el secret todavía no existe) — hay que completarlos antes del próximo merge a `main` que incluya cambios de frontend.
 
 ## Cómo usar este documento
 
