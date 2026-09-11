@@ -5,7 +5,7 @@ test.describe('Login', () => {
     await page.goto('/panel-admin/login')
 
     await page.getByLabel('Email corporativo').fill('no-existe@stc.local')
-    await page.getByLabel('Contrasena').fill('password-incorrecta')
+    await page.getByLabel('Contraseña').fill('password-incorrecta')
     await page.getByRole('button', { name: /ingresar/i }).click()
 
     await expect(page.locator('.form-error')).toBeVisible()

@@ -12,7 +12,7 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
     // --- Login ---
     await page.goto('/panel-admin/login')
     await page.getByLabel('Email corporativo').fill(E2E_ADMIN_EMAIL)
-    await page.getByLabel('Contrasena').fill(E2E_ADMIN_PASSWORD)
+    await page.getByLabel('Contraseña').fill(E2E_ADMIN_PASSWORD)
     await page.getByRole('button', { name: /ingresar/i }).click()
 
     await expect(page).toHaveURL(/\/panel-admin\/clientes$/)
@@ -73,13 +73,13 @@ test.describe('Flujo critico: login -> cliente -> sitio -> unidad -> ocupante ->
     await expect(page.getByText('Alta de activo bloqueada')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Nuevo activo' }).click()
-    await page.getByPlaceholder('Buscar ocupante existente').fill(ocupanteNombre)
-    await page.getByRole('button', { name: new RegExp(ocupanteNombre) }).click()
-    await expect(page.getByText(`Seleccionado: ${ocupanteNombre}`)).toBeVisible()
+    // El ocupante recien creado queda titular por defecto (ver
+    // useOcupanteForm.js), asi que aparece en el <select> con ese sufijo.
+    await page.getByLabel('Ocupante responsable').selectOption({ label: `${ocupanteNombre} (titular)` })
 
     await page.getByRole('button', { name: /guardar activo/i }).click()
 
-    const activoRow = page.locator('.data-grid-row', { hasText: 'camara' })
+    const activoRow = page.locator('.data-grid-row', { hasText: 'Cámara' })
     await expect(activoRow).toBeVisible()
     await expect(activoRow.getByText(ocupanteNombre)).toBeVisible()
   })
