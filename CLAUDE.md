@@ -14,6 +14,8 @@ El repo tiene tres partes:
 
 Documentación de arquitectura más detallada (mantenerla actualizada si se toca esto): `docs/arquitectura/00-Contexto-Proyecto.md`, `01-Estructura.MD`, `02-Backend-API.md`, `03-Diagrama.html`, `04-Migraciones.md` (flujo seguro para llevar una migración de local a remoto), `05-Ambientes.md` (cómo switchear la API entre el Docker local y el remoto, y qué implica trabajar en cada uno), `06-Testing.md` (cómo están armados los tests de API/frontend/E2E y cómo correrlos).
 
+`docs/roadmaps/` trackea deuda técnica y trabajo transversal (producción, seguridad, fortalecimiento general). `docs/features/` es distinto: un archivo por feature nueva en desarrollo, solo para llevar seguimiento lineal del avance (qué falta, qué está hecho) — no reemplaza el discovery ni la documentación de arquitectura.
+
 ## Comandos
 
 ### Frontend (`frontend/`)
